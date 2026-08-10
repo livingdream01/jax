@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useVoice } from "@/hooks/useVoice";
+import SlashMenu from "@/components/SlashMenu";
+import { filterCommands } from "@/lib/commands";
+import { getSessionId } from "@/lib/auth";
 
 interface ApexMessage {
   id: string;
@@ -18,8 +21,10 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [searchMode, setSearchMode] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  const [slashOpen, setSlashOpen] = useState(false);
   const [abortCtrl, setAbortCtrl] = useState<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isListening, transcript, toggleListening, speak, stopSpeaking, isSpeaking, generatingAudio, autoSpeak, setAutoSpeak, error: voiceError } = useVoice();
   const lastApexId = useRef("");
@@ -39,7 +44,10 @@ export default function ChatPage() {
     const trimmed = input.trim();
     if (!trimmed || streaming) return;
     if (isListening) toggleListening();
+    if (slashOpen) setSlashOpen(false);
     setInput("");
+
+    const sessionId = getSessionId();
     const userMsg: ApexMessage = { id: `user-${Date.now()}`, role: "user", text: trimmed, timestamp: Date.now() };
     setMessages(p => [...p, userMsg]);
     setStreaming(true);
@@ -52,7 +60,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed }),
+        body: JSON.stringify({ text: trimmed, sessionId }),
         signal: controller.signal,
       });
       const reader = res.body?.getReader();
@@ -90,7 +98,20 @@ export default function ChatPage() {
     });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isListening) return;
+    const val = e.target.value;
+    setInput(val);
+    if (val.startsWith("/") && !val.includes(" ")) {
+      setSlashOpen(true);
+    } else {
+      setSlashOpen(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey && !slashOpen) { e.preventDefault(); handleSend(); }
+  };
 
   const clearChat = async () => {
     if (abortCtrl) abortCtrl.abort();
@@ -199,7 +220,7 @@ export default function ChatPage() {
           {voiceError && !isListening && <p className="text-xs text-danger mb-2">{voiceError}</p>}
           {isListening && <p className="text-xs text-accent-glow mb-2 flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-accent-glow animate-pulse" />Listening — speak now</p>}
 
-          <div className="flex items-end gap-2 bg-bg-surface border border-border-default rounded-2xl p-2 focus-within:border-accent-border focus-within:shadow-sm focus-within:shadow-accent/5 transition-all">
+          <div className="relative flex items-end gap-2 bg-bg-surface border border-border-default rounded-2xl p-2 focus-within:border-accent-border focus-within:shadow-sm focus-within:shadow-accent/5 transition-all" ref={inputContainerRef}>
             <button onClick={toggleListening} disabled={streaming}
               className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-40 ${
                 isListening ? "bg-accent text-white" : "text-text-tertiary hover:text-text-secondary hover:bg-bg-glass"
@@ -209,14 +230,21 @@ export default function ChatPage() {
               </svg>
             </button>
             <input ref={inputRef} type="text" value={isListening ? transcript || input : input}
-              onChange={e => { if (!isListening) setInput(e.target.value); }} onKeyDown={handleKeyDown}
-              placeholder={streaming ? "APEX is responding..." : isListening ? "Listening..." : searchMode ? "Search the web..." : "Message APEX..."}
+              onChange={handleInputChange} onKeyDown={handleKeyDown}
+              placeholder={streaming ? "APEX is responding..." : isListening ? "Listening..." : searchMode ? "Search the web..." : "Type / for commands..."}
               disabled={streaming}
               className="flex-1 bg-transparent border-none outline-none text-sm text-text-primary placeholder:text-text-tertiary py-1.5 min-w-0 disabled:opacity-40" />
             <button onClick={handleSend} disabled={!input.trim() || streaming}
               className="shrink-0 accent-gradient-bg text-white w-9 h-9 rounded-xl flex items-center justify-center font-medium disabled:opacity-30 transition-all hover:shadow-md hover:shadow-accent/30">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
             </button>
+            <SlashMenu
+              isOpen={slashOpen && input.startsWith("/")}
+              query={input}
+              onSelect={(cmd) => { setInput(cmd); setSlashOpen(false); inputRef.current?.focus(); }}
+              onClose={() => setSlashOpen(false)}
+              inputRef={inputRef}
+            />
           </div>
 
           <div className="flex items-center justify-between mt-2.5 px-1">

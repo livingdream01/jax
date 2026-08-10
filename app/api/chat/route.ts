@@ -33,12 +33,12 @@ const cronLabels: Record<string, string> = {
 function describeCron(expr: string): string { return cronLabels[expr] || `Cron: ${expr}`; }
 
 export async function POST(req: Request) {
-  const { text } = await req.json().catch(() => ({}));
+  const { text, sessionId: reqSessionId } = await req.json().catch(() => ({}));
   if (!text?.trim()) {
     return new Response("data: {\"type\":\"error\",\"text\":\"Empty message.\"}\n\n", { headers: { "Content-Type": "text/event-stream" } });
   }
 
-  const sessionId = "default";
+  const sessionId = reqSessionId || "default";
   let ended = false;
 
   const stream = new ReadableStream({
