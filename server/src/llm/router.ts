@@ -1,5 +1,6 @@
 import { openrouterChat } from "./openrouter.js";
 import JARVIS_PERSONA from "./personality.js";
+import { getMemories, formatMemoriesForPrompt } from "../tools/memory.js";
 
 type Role = "system" | "user" | "assistant";
 
@@ -21,14 +22,21 @@ export function clearHistory(sessionId: string): void {
   conversationStore.delete(sessionId);
 }
 
+async function buildSystemPrompt(): Promise<string> {
+  const memories = await getMemories(40);
+  const memoryBlock = formatMemoriesForPrompt(memories);
+  return JARVIS_PERSONA + memoryBlock;
+}
+
 export async function chat(
   sessionId: string,
   userMessage: string,
   onChunk: (text: string) => void,
 ): Promise<string> {
   if (!conversationStore.has(sessionId)) {
+    const systemPrompt = await buildSystemPrompt();
     conversationStore.set(sessionId, [
-      { role: "system", content: JARVIS_PERSONA },
+      { role: "system", content: systemPrompt },
     ]);
   }
 

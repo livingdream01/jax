@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { handleChat } from "./ws-chat.js";
 import { getNews, clearNewsCache } from "./tools/news.js";
+import { getMemories, addMemory, deleteMemory, clearAllMemories } from "./tools/memory.js";
 import { randomUUID } from "node:crypto";
 
 try { loadEnvFile("../.env"); } catch { /* optional */ }
@@ -33,6 +34,28 @@ app.post("/api/news/refresh", async (_req, res) => {
   clearNewsCache();
   const articles = await getNews();
   res.json({ articles, count: articles.length, refreshed: true });
+});
+
+app.get("/api/memory", async (_req, res) => {
+  const memories = await getMemories(100);
+  res.json({ memories, count: memories.length });
+});
+
+app.post("/api/memory", async (req, res) => {
+  const { content, category } = req.body;
+  if (!content) return res.status(400).json({ error: "content required" });
+  const mem = await addMemory(content, category || "general", "api");
+  res.json(mem);
+});
+
+app.delete("/api/memory/:id", async (req, res) => {
+  await deleteMemory(parseInt(req.params.id));
+  res.json({ ok: true });
+});
+
+app.delete("/api/memory", async (_req, res) => {
+  await clearAllMemories();
+  res.json({ ok: true });
 });
 
 const server = createServer(app);

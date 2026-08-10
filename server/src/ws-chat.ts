@@ -2,6 +2,13 @@ import { WebSocket } from "ws";
 import { chat, clearHistory } from "./llm/router.js";
 import { getNews } from "./tools/news.js";
 import { webSearch } from "./tools/web-search.js";
+import {
+  addMemory,
+  getMemories,
+  deleteMemory,
+  clearAllMemories,
+  extractMemoriesFromChat,
+} from "./tools/memory.js";
 
 const SEARCH_TRIGGERS = /^(search|look up|find|what is|who is|how to|what are|latest|news about|tell me about)\b/i;
 
@@ -45,12 +52,58 @@ export function handleChat(ws: WebSocket, sessionId: string): void {
           }
         }
 
+        // Memory commands
+        if (/^\/remember\s+/i.test(text)) {
+          const fact = text.replace(/^\/remember\s+/i, "").trim();
+          if (fact) {
+            await addMemory(fact, "manual", "user");
+            ws.send(JSON.stringify({ type: "system", text: "Committed to memory, sir." }));
+          }
+          return;
+        }
+
+        if (/^\/forget\s+(\d+)/i.test(text)) {
+          const id = parseInt(text.match(/\/forget\s+(\d+)/i)![1]);
+          await deleteMemory(id);
+          ws.send(JSON.stringify({ type: "system", text: `Forgotten, sir. Memory #${id} removed.` }));
+          return;
+        }
+
+        if (/^\/memories/i.test(text)) {
+          const memories = await getMemories(20);
+          if (memories.length === 0) {
+            ws.send(JSON.stringify({ type: "system", text: "No memories stored yet, sir." }));
+          } else {
+            const list = memories
+              .map((m) => `#${m.id} [${m.category}] ${m.content}`)
+              .join("\n");
+            ws.send(JSON.stringify({ type: "system", text: `**Current memories:**\n\n${list}\n\nUse "/forget <id>" to remove one.` }));
+          }
+          return;
+        }
+
+        if (/^\/forgetall/i.test(text)) {
+          await clearAllMemories();
+          ws.send(JSON.stringify({ type: "system", text: "All memories wiped, sir. Clean slate." }));
+          return;
+        }
+
         ws.send(JSON.stringify({ type: "start" }));
 
-        await chat(sessionId, text, (chunk: string) => {
+        const response = await chat(sessionId, text, (chunk: string) => {
           if (ws.readyState !== WebSocket.OPEN) return;
           ws.send(JSON.stringify({ type: "chunk", text: chunk }));
         });
+
+        // Auto-extract memories from this exchange
+        extractMemoriesFromChat(text, response, async (messages) => {
+          const { openrouterChat } = await import("./llm/openrouter.js");
+          return openrouterChat(
+            "deepseek/deepseek-chat",
+            messages as { role: "system" | "user" | "assistant"; content: string }[],
+            () => {},
+          );
+        }).catch(() => {});
 
         ws.send(JSON.stringify({ type: "end" }));
         break;
