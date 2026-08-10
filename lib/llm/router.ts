@@ -1,0 +1,60 @@
+import { openrouterChat } from "./openrouter";
+import JARVIS_PERSONA from "./personality";
+import { getMemories, formatMemoriesForPrompt } from "@/lib/tools/memory";
+
+type Role = "system" | "user" | "assistant";
+interface Message { role: Role; content: string; }
+
+const DEEPSEEK_MODEL = "deepseek/deepseek-chat";
+const KIMI_MODEL = "moonshotai/kimi-k2.6";
+
+const conversationStore = new Map<string, Message[]>();
+
+export function getHistory(sessionId: string): Message[] {
+  return conversationStore.get(sessionId) || [];
+}
+
+export function clearHistory(sessionId: string): void {
+  conversationStore.delete(sessionId);
+}
+
+async function buildSystemPrompt(): Promise<string> {
+  const memories = await getMemories(40);
+  return JARVIS_PERSONA + formatMemoriesForPrompt(memories);
+}
+
+export async function chat(
+  sessionId: string,
+  userMessage: string,
+  onChunk: (text: string) => void,
+): Promise<string> {
+  if (!conversationStore.has(sessionId)) {
+    const systemPrompt = await buildSystemPrompt();
+    conversationStore.set(sessionId, [{ role: "system", content: systemPrompt }]);
+  }
+  const history = conversationStore.get(sessionId)!;
+  history.push({ role: "user", content: userMessage });
+  const result = await tryLLM(history, onChunk);
+  history.push({ role: "assistant", content: result });
+  if (history.length > 21) {
+    const systemMsg = history[0];
+    conversationStore.set(sessionId, [systemMsg, ...history.slice(-20)]);
+  }
+  return result;
+}
+
+async function tryLLM(messages: Message[], onChunk: (text: string) => void): Promise<string> {
+  try {
+    return await openrouterChat(DEEPSEEK_MODEL, messages, onChunk);
+  } catch (err) {
+    console.warn("[APEX] DeepSeek failed:", (err as any).message);
+    try {
+      return await openrouterChat(KIMI_MODEL, messages, onChunk);
+    } catch (err2) {
+      console.error("[APEX] Kimi also failed");
+      const fb = "I'm afraid my neural circuits aren't fully powered yet, sir. Check OPENROUTER_API_KEY in .env.";
+      onChunk(fb);
+      return fb;
+    }
+  }
+}

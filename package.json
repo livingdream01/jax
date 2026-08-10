@@ -1,21 +1,31 @@
 {
   "name": "apex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "APEX — A Jarvis-style personal assistant",
-  "workspaces": [
-    "server",
-    "client"
-  ],
+  "description": "APEX — A Jarvis-style personal assistant (Next.js)",
   "scripts": {
-    "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w client\"",
-    "build": "npm run build -w server && npm run build -w client",
-    "start": "npm run start -w server",
-    "lint": "npm run lint -w server && npm run lint -w client",
-    "typecheck": "npm run typecheck -w server && npm run typecheck -w client"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "next": "^15.1.7",
+    "node-cron": "^3.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sql.js": "^1.12.0"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
+    "@tailwindcss/postcss": "^4.0.7",
+    "@types/node": "^22.13.1",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@types/sql.js": "^1.4.11",
+    "tailwindcss": "^4.0.7",
     "typescript": "^5.7.3"
   }
 }

@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.next/
 .env
 .env.local
 .env.*.local
@@ -9,3 +10,4 @@ data/n8n/
 *.log
 .DS_Store
 .vite/
+tsconfig.tsbuildinfo

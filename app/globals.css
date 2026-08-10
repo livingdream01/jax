@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-apex-blue: #3B82F6;
+  --color-apex-cyan: #06B6D4;
+  --color-apex-amber: #F59E0B;
+  --color-apex-dark: #0F172A;
+  --color-apex-surface: #1E293B;
+  --color-apex-border: #334155;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-apex-border) transparent;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background: var(--color-apex-dark);
+  color: #e5e7eb;
+}
