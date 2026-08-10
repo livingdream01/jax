@@ -1,8 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { useChat } from "../hooks/useChat";
+import { useVoice } from "../hooks/useVoice";
 
 export default function Chat() {
   const { messages, connected, streaming, sendMessage, sendBriefing, sendSearch, clearChat } = useChat();
+  const {
+    isListening,
+    transcript,
+    toggleListening,
+    stopListening,
+    speak,
+    stopSpeaking,
+    isSpeaking,
+    autoSpeak,
+    setAutoSpeak,
+  } = useVoice();
+
   const [input, setInput] = useState("");
   const [searchMode, setSearchMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -12,9 +25,47 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Auto-fill input when transcript is captured
+  useEffect(() => {
+    if (transcript && !isListening) {
+      setInput(transcript);
+      inputRef.current?.focus();
+    }
+  }, [transcript, isListening]);
+
+  // Auto-speak new Jax responses
+  useEffect(() => {
+    if (!autoSpeak || !messages.length) return;
+    const last = messages[messages.length - 1];
+    if (last.role === "jax" && last.text && !streaming) {
+      const speakingId = last.id;
+      speak(last.text);
+      // Don't speak it again
+      setTimeout(() => {
+        if ((speakingRef.current || speakingId) === speakingId) {
+          speakingRef.current = "";
+        }
+      }, 100);
+    }
+  }, [messages, streaming]);
+
+  const speakingRef = useRef("");
+  const lastJaxId = useRef("");
+
+  useEffect(() => {
+    if (!streaming && messages.length > 0) {
+      const last = messages[messages.length - 1];
+      if (last.role === "jax" && last.text && last.id !== lastJaxId.current && autoSpeak) {
+        lastJaxId.current = last.id;
+        speak(last.text);
+      }
+    }
+  }, [streaming]);
+
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || streaming) return;
+    if (isListening) stopListening();
     if (searchMode) {
       sendSearch(trimmed);
       setSearchMode(false);
@@ -22,6 +73,14 @@ export default function Chat() {
       sendMessage(trimmed);
     }
     setInput("");
+  };
+
+  const handleSpeak = (text: string) => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else {
+      speak(text);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -46,6 +105,15 @@ export default function Chat() {
           <p className="text-sm text-gray-500">Your personal assistant — at your service, sir.</p>
         </div>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 cursor-pointer" title="Auto-speak responses">
+            <input
+              type="checkbox"
+              checked={autoSpeak}
+              onChange={(e) => setAutoSpeak(e.target.checked)}
+              className="w-3 h-3 accent-jax-cyan"
+            />
+            <span className="text-[10px] text-gray-500 hidden sm:inline">Auto</span>
+          </label>
           <button
             onClick={() => { setSearchMode(!searchMode); inputRef.current?.focus(); }}
             className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
@@ -130,6 +198,16 @@ export default function Chat() {
                 )}
               </p>
 
+              {msg.role === "jax" && msg.text.length > 20 && (
+                <button
+                  onClick={() => handleSpeak(msg.text)}
+                  className="mt-2 text-[10px] text-gray-500 hover:text-jax-cyan transition-colors"
+                  title={isSpeaking ? "Stop speaking" : "Read aloud"}
+                >
+                  {isSpeaking ? "■ Stop" : "🔊 Read aloud"}
+                </button>
+              )}
+
               {msg.searchResults && msg.searchResults.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-jax-border">
                   <p className="text-xs text-gray-500 mb-2">Sources</p>
@@ -172,19 +250,48 @@ export default function Chat() {
             </span>
           </div>
         )}
-        <div className="flex gap-3">
+        {isListening && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-red-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+              Listening... speak now
+            </span>
+          </div>
+        )}
+        <div className="flex gap-3 items-center">
+          <button
+            onClick={toggleListening}
+            disabled={streaming}
+            className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 ${
+              isListening
+                ? "bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse"
+                : "bg-jax-surface border border-jax-border text-gray-500 hover:text-jax-cyan hover:border-jax-cyan"
+            }`}
+            title="Voice input"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+          </button>
           <input
             ref={inputRef}
             type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={isListening ? transcript || input : input}
+            onChange={(e) => {
+              if (!isListening) setInput(e.target.value);
+            }}
             onKeyDown={handleKeyDown}
             placeholder={
               streaming
                 ? "Jax is responding..."
-                : searchMode
-                  ? "Search the web..."
-                  : "Message Jax... (or type /search to search the web)"
+                : isListening
+                  ? "Listening..."
+                  : searchMode
+                    ? "Search the web..."
+                    : "Message Jax... (mic for voice, /search for web)"
             }
             disabled={streaming}
             className={`flex-1 border rounded-lg px-4 py-3 text-sm focus:outline-none transition-colors disabled:opacity-50 ${
@@ -196,7 +303,7 @@ export default function Chat() {
           <button
             onClick={handleSend}
             disabled={!input.trim() || streaming}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`shrink-0 px-6 py-3 rounded-lg font-medium transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
               searchMode
                 ? "bg-jax-amber hover:bg-amber-600 text-black"
                 : "bg-jax-blue hover:bg-jax-cyan text-white"
