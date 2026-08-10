@@ -15,6 +15,12 @@ const CRON_LABELS: Record<string, string> = {
   "0 18 * * *": "Every day at 6:00 PM",
 };
 
+const TYPE_META: Record<string, { icon: string; color: string }> = {
+  briefing: { icon: "\ud83d\udcf0", color: "text-accent-glow" },
+  search: { icon: "\ud83d\udd0d", color: "text-warning" },
+  custom: { icon: "\u2699", color: "text-text-secondary" },
+};
+
 export default function AutomationsPage() {
   const [tasks, setTasks] = useState<AutomationTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,41 +43,69 @@ export default function AutomationsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="border-b border-apex-border px-6 py-4 shrink-0">
-        <h2 className="text-lg font-semibold text-gray-200">Automations</h2>
-        <p className="text-sm text-gray-500">{tasks.filter(t => t.enabled).length} active</p>
+      <header className="h-14 flex items-center px-6 border-b border-border-subtle shrink-0">
+        <div className="flex items-center gap-3">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="text-text-secondary">
+            <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+          <h2 className="text-sm font-semibold text-text-primary">Automations</h2>
+          <span className="text-[11px] text-text-tertiary">{tasks.filter(t => t.enabled).length} active</span>
+        </div>
       </header>
+
       <div className="flex-1 overflow-y-auto p-6">
-        {loading && <div className="flex items-center justify-center h-full text-gray-500"><div className="w-6 h-6 border-2 border-apex-cyan border-t-transparent rounded-full animate-spin" /></div>}
+        {loading && <div className="flex items-center justify-center min-h-[40vh]"><div className="w-6 h-6 border-2 border-accent-glow border-t-transparent rounded-full animate-spin" /></div>}
         {!loading && tasks.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <p className="text-4xl mb-3">\u26a1</p>
-            <p className="text-lg font-medium text-gray-400 mb-2">No automations yet</p>
-            <div className="bg-apex-surface border border-apex-border rounded-lg p-4 max-w-md"><p className="text-xs text-gray-400 font-mono">/automate every morning at 8am compile tech news</p></div>
+          <div className="flex flex-col items-center justify-center min-h-[40vh] text-text-tertiary">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3 opacity-40"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+            <p className="text-sm font-medium text-text-secondary mb-1">No automations yet</p>
+            <p className="text-xs mb-4">Create one by chatting with APEX</p>
+            <code className="bg-bg-surface border border-border-subtle rounded-lg px-4 py-2.5 text-xs text-text-secondary font-mono">/automate every morning at 8am briefing</code>
           </div>
         )}
-        {tasks.map(t => (
-          <div key={t.id} className="bg-apex-surface border border-apex-border rounded-lg p-4 mb-3">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="text-sm font-medium text-gray-200">{t.name}</h3>
-                <p className="text-xs text-gray-500">{CRON_LABELS[t.cronExpression] || t.cronExpression}</p>
+        <div className="space-y-2">
+          {tasks.map(t => {
+            const meta = TYPE_META[t.type] || TYPE_META.custom;
+            const params = t.params ? JSON.parse(t.params) : {};
+            return (
+              <div key={t.id} className="bg-bg-surface border border-border-subtle rounded-xl p-4 hover:border-border-default transition-all">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="text-lg shrink-0 mt-0.5">{meta.icon}</span>
+                    <div>
+                      <h3 className="text-sm font-medium text-text-primary">{t.name}</h3>
+                      <p className="text-xs text-text-tertiary mt-0.5">{CRON_LABELS[t.cronExpression] || t.cronExpression}</p>
+                      {t.type === "briefing" && params.category && (
+                        <span className="inline-block mt-1.5 text-[10px] px-1.5 py-0.5 rounded bg-accent-muted text-accent-glow border border-accent-border/30">{params.category}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => toggleTask(t.id, !t.enabled)}
+                      className={`relative w-9 h-5 rounded-full transition-colors ${t.enabled ? "bg-accent" : "bg-bg-elevated border border-border-default"}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${t.enabled ? "left-[18px]" : "left-0.5"}`} />
+                    </button>
+                    <button onClick={() => delTask(t.id)} className="text-text-tertiary hover:text-danger transition-colors p-1">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  </div>
+                </div>
+                {t.lastRun && (
+                  <div className="mt-3 pt-3 border-t border-border-subtle flex items-center gap-3 text-[10px]">
+                    <span className="text-text-tertiary">Last run: {t.lastRun.slice(11, 16)}</span>
+                    <span className={`px-1.5 py-0.5 rounded font-medium ${t.lastStatus === "success" ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>{t.lastStatus}</span>
+                    <span className="text-text-tertiary ml-auto font-mono">{t.cronExpression}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => toggleTask(t.id, !t.enabled)} className={`relative w-10 h-6 rounded-full ${t.enabled ? "bg-apex-cyan" : "bg-apex-border"}`}>
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${t.enabled ? "translate-x-4" : ""}`} />
-                </button>
-                <button onClick={() => delTask(t.id)} className="text-gray-600 hover:text-red-400 text-sm">\u2715</button>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-[10px] text-gray-600">
-              <span className="px-1.5 py-0.5 rounded bg-black/20 border border-apex-border">{t.cronExpression}</span>
-              {t.lastRun && <span className={t.lastStatus === "success" ? "text-emerald-400" : "text-red-400"}>Last: {t.lastRun.slice(11, 16)} \u2022 {t.lastStatus}</span>}
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
-      <div className="border-t border-apex-border px-6 py-3 shrink-0"><p className="text-xs text-gray-600">Use <code className="text-apex-cyan">/automate</code> in chat to create tasks.</p></div>
+
+      <div className="px-6 py-3 border-t border-border-subtle shrink-0">
+        <p className="text-[11px] text-text-tertiary">Use <code className="text-accent-glow font-mono">/automate</code> in chat to create tasks</p>
+      </div>
     </div>
   );
 }
