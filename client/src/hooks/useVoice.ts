@@ -105,7 +105,27 @@ export function useVoice(): VoiceHook {
   }, [isListening, startListening, stopListening]);
 
   const speakApi = useCallback(async (text: string) => {
-    const cleanText = text.replace(/\*\*/g, "").replace(/`/g, "").replace(/#{1,6}\s/g, "").trim();
+    let cleanText = text
+      .replace(/\*\*(.*?)\*\*/g, "$1")       // bold
+      .replace(/\*(.*?)\*/g, "$1")            // italic
+      .replace(/`{1,3}[\s\S]*?`{1,3}/g, "")  // inline and block code
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // links [text](url)
+      .replace(/^#{1,6}\s+/gm, "")            // headings
+      .replace(/^\s*[-*+]\s+/gm, "")          // list markers
+      .replace(/^\s*\d+\.\s+/gm, "")          // numbered lists
+      .replace(/^>\s+/gm, "")                 // blockquotes
+      .replace(/~~(.*?)~~/g, "$1")            // strikethrough
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#(\d+);/g, "")               // HTML entities
+      .replace(/[_~]{1,3}/g, "")              // leftover formatting chars
+      .replace(/\n{2,}/g, ". ")               // double newlines → sentence break
+      .replace(/\n/g, " ")                    // single newlines → space
+      .replace(/\s{2,}/g, " ")                // collapse multiple spaces
+      .trim();
+
     if (!cleanText) return;
 
     setGeneratingAudio(true);
@@ -137,11 +157,11 @@ export function useVoice(): VoiceHook {
     speakBrowser(cleanText);
   }, []);
 
-  const speakBrowser = (cleanText: string) => {
-    if (!synth || !cleanText) return;
+  const speakBrowser = (text: string) => {
+    if (!synth || !text) return;
 
     synth.cancel();
-    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.92;
     utterance.pitch = 0.85;
     utterance.volume = 1;
