@@ -9,6 +9,7 @@ interface VoiceHook {
   speak: (text: string) => void;
   stopSpeaking: () => void;
   isSpeaking: boolean;
+  generatingAudio: boolean;
   autoSpeak: boolean;
   setAutoSpeak: (v: boolean) => void;
   error: string;
@@ -31,6 +32,7 @@ function getAudioCtx(): AudioContext {
 export function useVoice(): VoiceHook {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [error, setError] = useState("");
@@ -106,8 +108,9 @@ export function useVoice(): VoiceHook {
     const cleanText = text.replace(/\*\*/g, "").replace(/`/g, "").replace(/#{1,6}\s/g, "").trim();
     if (!cleanText) return;
 
+    setGeneratingAudio(true);
+
     try {
-      setIsSpeaking(true);
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,11 +119,12 @@ export function useVoice(): VoiceHook {
 
       if (res.ok) {
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
+        setGeneratingAudio(false);
+        setIsSpeaking(true);
 
+        const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         audioRef.current = audio;
-
         audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
         audio.onerror = () => { setIsSpeaking(false); speakBrowser(cleanText); URL.revokeObjectURL(url); };
         audio.play().catch(() => { setIsSpeaking(false); speakBrowser(cleanText); });
@@ -129,7 +133,7 @@ export function useVoice(): VoiceHook {
     } catch {
       // Fall through to browser TTS
     }
-    setIsSpeaking(false);
+    setGeneratingAudio(false);
     speakBrowser(cleanText);
   }, []);
 
@@ -159,6 +163,7 @@ export function useVoice(): VoiceHook {
   };
 
   const stopSpeaking = useCallback(() => {
+    setGeneratingAudio(false);
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     if (synth) synth.cancel();
     setIsSpeaking(false);
@@ -173,6 +178,7 @@ export function useVoice(): VoiceHook {
     speak: speakApi,
     stopSpeaking,
     isSpeaking,
+    generatingAudio,
     autoSpeak,
     setAutoSpeak,
     error,

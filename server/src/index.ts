@@ -52,7 +52,7 @@ app.post("/api/tts", async (req, res) => {
         text,
         reference_id: FISH_AUDIO_VOICE,
         format: "mp3",
-        latency: "normal",
+        latency: "low",
         normalize: true,
       }),
     });

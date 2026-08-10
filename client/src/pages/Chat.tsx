@@ -11,6 +11,7 @@ export default function Chat() {
     speak,
     stopSpeaking,
     isSpeaking,
+    generatingAudio,
     autoSpeak,
     setAutoSpeak,
     error: voiceError,
@@ -190,10 +191,11 @@ export default function Chat() {
               {msg.role === "jax" && msg.text.length > 20 && (
                 <button
                   onClick={() => handleSpeak(msg.text)}
-                  className="mt-2 text-[10px] text-gray-500 hover:text-apex-cyan transition-colors"
-                  title={isSpeaking ? "Stop speaking" : "Read aloud"}
+                  disabled={generatingAudio}
+                  className="mt-2 text-[10px] text-gray-500 hover:text-apex-cyan transition-colors disabled:opacity-50 select-none"
+                  title={isSpeaking ? "Stop speaking" : generatingAudio ? "Generating audio..." : "Read aloud"}
                 >
-                  {isSpeaking ? "■ Stop" : "🔊 Read aloud"}
+                  {generatingAudio ? "⏳ Generating..." : isSpeaking ? "■ Stop" : "🔊 Read aloud"}
                 </button>
               )}
 
