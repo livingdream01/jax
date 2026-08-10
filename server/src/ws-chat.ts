@@ -2,6 +2,7 @@ import { WebSocket } from "ws";
 import { chat, clearHistory } from "./llm/router.js";
 import { getNews } from "./tools/news.js";
 import { webSearch } from "./tools/web-search.js";
+import { deepResearch } from "./tools/research.js";
 import {
   addMemory,
   getMemories,
@@ -225,6 +226,61 @@ Output ONLY the JSON, no other text:`;
             saveDb();
             ws.send(JSON.stringify({ type: "system", text: `Automation "${name}" removed, sir.` }));
           }
+          return;
+        }
+
+        if (/^\/research\s+/i.test(text)) {
+          const topic = text.replace(/^\/research\s+/i, "").trim();
+          if (!topic) {
+            ws.send(JSON.stringify({ type: "system", text: "Usage: /research <topic>" }));
+            return;
+          }
+          ws.send(JSON.stringify({ type: "start" }));
+          await deepResearch(
+            topic,
+            async (messages, onChunk) => {
+              const { openrouterChat } = await import("./llm/openrouter.js");
+              return openrouterChat("deepseek/deepseek-chat", messages, onChunk);
+            },
+            (chunk) => {
+              if (ws.readyState !== WebSocket.OPEN) return;
+              ws.send(JSON.stringify({ type: "chunk", text: chunk }));
+            },
+          );
+          ws.send(JSON.stringify({ type: "end" }));
+          return;
+        }
+
+        if (/^\/fetch\s+/i.test(text)) {
+          const url = text.replace(/^\/fetch\s+/i, "").trim();
+          if (!url.startsWith("http")) {
+            ws.send(JSON.stringify({ type: "system", text: "Usage: /fetch https://..." }));
+            return;
+          }
+          ws.send(JSON.stringify({ type: "start" }));
+          ws.send(JSON.stringify({ type: "chunk", text: `Fetching ${url}...\n\n` }));
+
+          const { fetchPageContent } = await import("./tools/research.js");
+          const content = await fetchPageContent(url);
+
+          if (!content) {
+            ws.send(JSON.stringify({ type: "chunk", text: "Could not fetch this page, sir." }));
+          } else {
+            const { openrouterChat } = await import("./llm/openrouter.js");
+            const prompt = `Summarize this webpage content concisely. Include key points and a brief summary. The content:\n\n${content.slice(0, 4000)}`;
+            await openrouterChat(
+              "deepseek/deepseek-chat",
+              [
+                { role: "system" as const, content: "You summarize web pages concisely." },
+                { role: "user" as const, content: prompt },
+              ],
+              (chunk: string) => {
+                if (ws.readyState !== WebSocket.OPEN) return;
+                ws.send(JSON.stringify({ type: "chunk", text: chunk }));
+              },
+            );
+          }
+          ws.send(JSON.stringify({ type: "end" }));
           return;
         }
 

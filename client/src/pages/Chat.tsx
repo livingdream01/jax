@@ -82,9 +82,9 @@ export default function Chat() {
 
   const suggestedPrompts = [
     "What can you do for me, Apex?",
-    "Search latest quantum computing breakthroughs",
+    "/research quantum computing market 2026",
+    "Search latest AI breakthroughs",
     "Give me a tech news briefing",
-    "Tell me a joke",
   ];
 
   return (
@@ -112,7 +112,7 @@ export default function Chat() {
                 : "text-gray-500 border border-transparent hover:text-gray-300"
             }`}
           >
-            {searchMode ? "Search Mode" : "Search"}
+            {searchMode ? "Search" : "Search"}
           </button>
           <button
             onClick={() => sendBriefing()}
