@@ -6,6 +6,17 @@ import { WebSocketServer, WebSocket } from "ws";
 import { handleChat } from "./ws-chat.js";
 import { getNews, clearNewsCache } from "./tools/news.js";
 import { getMemories, addMemory, deleteMemory, clearAllMemories } from "./tools/memory.js";
+import { getDb, saveDb } from "./db.js";
+import {
+  initAutomator,
+  getAllTasks,
+  createTask,
+  deleteTask,
+  toggleTask,
+  stopAllJobs,
+  type AutomationTask,
+} from "./tools/automator.js";
+import { webSearch } from "./tools/web-search.js";
 import { randomUUID } from "node:crypto";
 
 try { loadEnvFile("../.env"); } catch { /* optional */ }
@@ -20,12 +31,13 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", name: "JAX", version: "0.1.0" });
 });
 
+// News
 app.get("/api/news", async (req, res) => {
   try {
     const category = req.query.category as string | undefined;
     const articles = await getNews(category);
     res.json({ articles, count: articles.length, cached: true });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: "Failed to fetch news" });
   }
 });
@@ -36,6 +48,7 @@ app.post("/api/news/refresh", async (_req, res) => {
   res.json({ articles, count: articles.length, refreshed: true });
 });
 
+// Memory
 app.get("/api/memory", async (_req, res) => {
   const memories = await getMemories(100);
   res.json({ memories, count: memories.length });
@@ -58,6 +71,83 @@ app.delete("/api/memory", async (_req, res) => {
   res.json({ ok: true });
 });
 
+// Automations
+async function runAutomationTask(task: AutomationTask): Promise<void> {
+  switch (task.type) {
+    case "briefing": {
+      const params = JSON.parse(task.params || "{}");
+      const category = params.category || undefined;
+      const articles = await getNews(category);
+      console.log(`[JAX] Auto-briefing "${task.name}": ${articles.length} articles fetched`);
+      break;
+    }
+    case "search": {
+      const params = JSON.parse(task.params || "{}");
+      const query = params.query || "";
+      if (query) {
+        await webSearch(query);
+        console.log(`[JAX] Auto-search "${task.name}": completed`);
+      }
+      break;
+    }
+  }
+}
+
+const dbReady = getDb().then(async (db) => {
+  initAutomator(db, async (task) => {
+    await runAutomationTask(task);
+    saveDb();
+  });
+  return db;
+});
+
+app.get("/api/automations", async (_req, res) => {
+  const db = await dbReady;
+  const tasks = getAllTasks(db);
+  res.json({ tasks, count: tasks.length });
+});
+
+app.post("/api/automations", async (req, res) => {
+  try {
+    const db = await dbReady;
+    const { name, cronExpression, type, params, enabled } = req.body;
+    if (!name || !cronExpression) return res.status(400).json({ error: "name and cronExpression required" });
+
+    const task = createTask(
+      db,
+      {
+        name,
+        cronExpression,
+        type: type || "custom",
+        params: JSON.stringify(params || {}),
+        enabled: enabled !== false,
+      },
+      async (t) => { await runAutomationTask(t); saveDb(); },
+    );
+    res.json(task);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+app.put("/api/automations/:id/toggle", async (req, res) => {
+  const db = await dbReady;
+  const task = await toggleTask(db, parseInt(req.params.id), req.body.enabled, async (t) => {
+    await runAutomationTask(t);
+    saveDb();
+  });
+  if (!task) return res.status(404).json({ error: "Task not found" });
+  res.json(task);
+});
+
+app.delete("/api/automations/:id", async (req, res) => {
+  const db = await dbReady;
+  await deleteTask(db, parseInt(req.params.id));
+  saveDb();
+  res.json({ ok: true });
+});
+
+// WS
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
@@ -66,27 +156,22 @@ const sessions = new Map<WebSocket, string>();
 wss.on("connection", (ws) => {
   const sessionId = randomUUID();
   sessions.set(ws, sessionId);
-
   console.log(`[JAX] Client connected (${sessionId.slice(0, 8)})`);
-
   handleChat(ws, sessionId);
-
-  ws.on("close", () => {
-    sessions.delete(ws);
-    console.log(`[JAX] Client disconnected (${sessionId.slice(0, 8)})`);
-  });
-
-  ws.send(
-    JSON.stringify({
-      type: "greeting",
-      text: "Good evening, sir. JAX is fully operational. How may I be of service?",
-    }),
-  );
+  ws.on("close", () => { sessions.delete(ws); });
+  ws.send(JSON.stringify({
+    type: "greeting",
+    text: "Good evening, sir. JAX is fully operational. How may I be of service?",
+  }));
 });
 
-server.listen(port, () => {
+server.listen(port, async () => {
   const key = process.env.OPENROUTER_API_KEY || "";
   const ok = key.startsWith("sk-or-v1-") && !key.includes("placeholder");
+
+  const db = await dbReady;
+  const tasks = getAllTasks(db);
+  const activeJobs = tasks.filter((t) => t.enabled).length;
 
   console.log("");
   console.log("  ██╗ █████╗ ██╗  ██╗");
@@ -99,7 +184,8 @@ server.listen(port, () => {
   console.log(`  Server:    http://localhost:${port}`);
   console.log("  Dashboard: http://localhost:5173");
   console.log("");
-  console.log(`  LLM (OpenRouter): ${ok ? "✓ Configured" : "✗ Get free key at openrouter.ai/keys"}`);
-  console.log(`  Models: DeepSeek Chat (primary) → Kimi K2.6 (fallback)`);
+  console.log(`  LLM:     ${ok ? "✓ OpenRouter" : "✗ Missing key"}`);
+  console.log(`  Memory:  ✓ ${(await getMemories(0)).length} facts stored`);
+  console.log(`  Auto:     ${activeJobs} scheduled tasks active`);
   console.log("");
 });

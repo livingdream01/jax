@@ -9,8 +9,42 @@ import {
   clearAllMemories,
   extractMemoriesFromChat,
 } from "./tools/memory.js";
+import { getDb, saveDb } from "./db.js";
+import { createTask, getAllTasks, deleteTask as deleteScheduledTask, type AutomationTask } from "./tools/automator.js";
 
 const SEARCH_TRIGGERS = /^(search|look up|find|what is|who is|how to|what are|latest|news about|tell me about)\b/i;
+
+async function runAutomationTask(task: AutomationTask): Promise<void> {
+  const { getNews } = await import("./tools/news.js");
+  const { webSearch } = await import("./tools/web-search.js");
+
+  switch (task.type) {
+    case "briefing": {
+      const params = JSON.parse(task.params || "{}");
+      await getNews(params.category || undefined);
+      break;
+    }
+    case "search": {
+      const params = JSON.parse(task.params || "{}");
+      if (params.query) await webSearch(params.query);
+      break;
+    }
+  }
+}
+
+function describeCron(expr: string): string {
+  const cronHelp: Record<string, string> = {
+    "0 8 * * *": "Every day at 8:00 AM",
+    "0 9 * * 1-5": "Weekdays at 9:00 AM",
+    "0 7 * * 1": "Mondays at 7:00 AM",
+    "0 */6 * * *": "Every 6 hours",
+    "0 0 * * *": "Daily at midnight",
+    "*/15 * * * *": "Every 15 minutes",
+    "0 8 * * 1-5": "Weekdays at 8:00 AM",
+    "0 9 * * *": "Every day at 9:00 AM",
+  };
+  return cronHelp[expr] || `Cron: ${expr}`;
+}
 
 export function handleChat(ws: WebSocket, sessionId: string): void {
   ws.on("message", async (raw) => {
@@ -85,6 +119,112 @@ export function handleChat(ws: WebSocket, sessionId: string): void {
         if (/^\/forgetall/i.test(text)) {
           await clearAllMemories();
           ws.send(JSON.stringify({ type: "system", text: "All memories wiped, sir. Clean slate." }));
+          return;
+        }
+
+        if (/^\/automate\s+/i.test(text)) {
+          const description = text.replace(/^\/automate\s+/i, "").trim();
+          if (!description) {
+            ws.send(JSON.stringify({ type: "system", text: "Usage: /automate every morning at 8AM compile tech news briefing" }));
+            return;
+          }
+
+          ws.send(JSON.stringify({ type: "system", text: "Processing your automation request..." }));
+
+          try {
+            const cronPrompt = `You are a cron expression generator. Given a natural language description of a recurring schedule, output ONLY a JSON object with:
+- "name": a short task name (max 50 chars)
+- "cronExpression": a valid 5-field cron expression (minute hour day_of_month month day_of_week)
+- "type": "briefing" | "search" | "custom"
+- "params": task parameters as JSON
+
+NL: "${description}"
+
+Output ONLY the JSON, no other text:`;
+
+            const { openrouterChat } = await import("./llm/openrouter.js");
+            const cronResult = await openrouterChat(
+              "deepseek/deepseek-chat",
+              [
+                { role: "system", content: "You are a cron expression generator. Output only valid JSON." },
+                { role: "user", content: cronPrompt },
+              ],
+              () => {},
+            );
+
+            let parsed: { name: string; cronExpression: string; type: string; params: any };
+            try {
+              const jsonMatch = cronResult.match(/\{[\s\S]*?\}/);
+              if (jsonMatch) {
+                parsed = JSON.parse(jsonMatch[0]);
+              } else {
+                parsed = JSON.parse(cronResult);
+              }
+            } catch {
+              // Fallback: parse manually
+              const lower = description.toLowerCase();
+              parsed = {
+                name: description.slice(0, 50),
+                cronExpression: lower.includes("morning") && lower.includes("8") ? "0 8 * * *" : "0 9 * * 1-5",
+                type: lower.includes("briefing") || lower.includes("news") ? "briefing" : lower.includes("search") ? "search" : "custom",
+                params: {},
+              };
+            }
+
+            const db = await getDb();
+            const task = createTask(
+              db,
+              {
+                name: parsed.name,
+                cronExpression: parsed.cronExpression,
+                type: parsed.type as "briefing" | "search" | "custom",
+                params: JSON.stringify(parsed.params || {}),
+                enabled: true,
+              },
+              async (t) => { await runAutomationTask(t); saveDb(); },
+            );
+            saveDb();
+
+            const scheduleDesc = describeCron(parsed.cronExpression);
+            ws.send(JSON.stringify({
+              type: "system",
+              text: `**Automation created, sir.**\n\nName: ${task.name}\nSchedule: ${scheduleDesc} (${parsed.cronExpression})\nType: ${parsed.type}\n\nUse \`\`/automations\`\` to view all scheduled tasks.`,
+            }));
+          } catch (err) {
+            ws.send(JSON.stringify({
+              type: "system",
+              text: `Failed to create automation: ${(err as Error).message}`,
+            }));
+          }
+          return;
+        }
+
+        if (/^\/automations$/i.test(text)) {
+          const db = await getDb();
+          const tasks = getAllTasks(db);
+          if (tasks.length === 0) {
+            ws.send(JSON.stringify({ type: "system", text: "No scheduled automations, sir." }));
+          } else {
+            const list = tasks
+              .map((t) => `• **${t.name}** [${t.enabled ? "✓" : "✗"}] — ${describeCron(t.cronExpression)} (${t.cronExpression}) ${t.lastRun ? `| Last: ${t.lastRun} ${t.lastStatus}` : ""}`)
+              .join("\n");
+            ws.send(JSON.stringify({ type: "system", text: `**Scheduled Automations:**\n\n${list}\n\nUse \`\`/autodelete <name>\`\` to remove one.` }));
+          }
+          return;
+        }
+
+        if (/^\/autodelete\s+/i.test(text)) {
+          const name = text.replace(/^\/autodelete\s+/i, "").trim();
+          const db = await getDb();
+          const tasks = getAllTasks(db);
+          const task = tasks.find((t) => t.name === name);
+          if (!task) {
+            ws.send(JSON.stringify({ type: "system", text: `No automation named "${name}" found, sir.` }));
+          } else {
+            deleteScheduledTask(db, task.id);
+            saveDb();
+            ws.send(JSON.stringify({ type: "system", text: `Automation "${name}" removed, sir.` }));
+          }
           return;
         }
 
