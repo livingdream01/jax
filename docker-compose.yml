@@ -1,0 +1,26 @@
+services:
+  jax-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - KIMI_API_KEY=${KIMI_API_KEY:-}
+      - NEWSAPI_KEY=${NEWSAPI_KEY:-}
+      - GNEWS_KEY=${GNEWS_KEY:-}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  jax-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - jax-server
+    restart: unless-stopped

@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  --color-jax-blue: #3B82F6;
+  --color-jax-cyan: #06B6D4;
+  --color-jax-amber: #F59E0B;
+  --color-jax-dark: #0F172A;
+  --color-jax-surface: #1E293B;
+  --color-jax-border: #334155;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-jax-border) transparent;
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+}
