@@ -31,6 +31,44 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", name: "APEX", version: "0.1.0" });
 });
 
+const FISH_AUDIO_VOICE = "d54ff84272464629b509682d42db5661";
+
+app.post("/api/tts", async (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: "text required" });
+
+  const apiKey = process.env.FISH_AUDIO_API_KEY;
+  if (!apiKey) return res.status(400).json({ error: "FISH_AUDIO_API_KEY not set" });
+
+  try {
+    const response = await fetch("https://api.fish.audio/v1/tts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        text,
+        reference_id: FISH_AUDIO_VOICE,
+        format: "mp3",
+        latency: "normal",
+        normalize: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: err });
+    }
+
+    const buffer = await response.arrayBuffer();
+    res.set("Content-Type", "audio/mpeg");
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    res.status(500).json({ error: "TTS failed" });
+  }
+});
+
 // News
 app.get("/api/news", async (req, res) => {
   try {
