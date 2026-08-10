@@ -45,8 +45,8 @@ wss.on("connection", (ws) => {
 });
 
 server.listen(port, () => {
-  const ds = process.env.DEEPSEEK_API_KEY?.startsWith("sk-") && process.env.DEEPSEEK_API_KEY !== "sk-placeholder";
-  const kimi = process.env.KIMI_API_KEY?.startsWith("sk-") && process.env.KIMI_API_KEY !== "sk-placeholder";
+  const key = process.env.OPENROUTER_API_KEY || "";
+  const ok = key.startsWith("sk-or-v1-") && !key.includes("placeholder");
 
   console.log("");
   console.log("  ██╗ █████╗ ██╗  ██╗");
@@ -56,10 +56,10 @@ server.listen(port, () => {
   console.log("  ██║██║  ██║██╔╝ ██╗");
   console.log("  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝");
   console.log("");
-  console.log(`  Server:   http://localhost:${port}`);
-  console.log(`  Dashboard: http://localhost:5173`);
+  console.log(`  Server:    http://localhost:${port}`);
+  console.log("  Dashboard: http://localhost:5173");
   console.log("");
-  console.log(`  DeepSeek API: ${ds ? "✓ Configured" : "✗ Missing — sign up at platform.deepseek.com (free credits)"}`);
-  console.log(`  Kimi API:     ${kimi ? "✓ Configured" : "✗ Missing — sign up at platform.moonshot.cn (free credits)"}`);
+  console.log(`  LLM (OpenRouter): ${ok ? "✓ Configured" : "✗ Get free key at openrouter.ai/keys"}`);
+  console.log(`  Models: DeepSeek Chat (primary) → Kimi K2.6 (fallback)`);
   console.log("");
 });

@@ -1,5 +1,4 @@
-import { deepseekChat } from "./deepseek.js";
-import { kimiChat } from "./kimi.js";
+import { openrouterChat } from "./openrouter.js";
 import JARVIS_PERSONA from "./personality.js";
 
 type Role = "system" | "user" | "assistant";
@@ -8,6 +7,9 @@ interface Message {
   role: Role;
   content: string;
 }
+
+const DEEPSEEK_MODEL = "deepseek/deepseek-chat";
+const KIMI_MODEL = "moonshotai/kimi-k2.6";
 
 const conversationStore = new Map<string, Message[]>();
 
@@ -36,13 +38,9 @@ export async function chat(
   const result = await tryLLM(history, onChunk);
   history.push({ role: "assistant", content: result });
 
-  // Keep only last 20 messages to avoid context bloat
   if (history.length > 21) {
     const systemMsg = history[0];
-    conversationStore.set(sessionId, [
-      systemMsg,
-      ...history.slice(-20),
-    ]);
+    conversationStore.set(sessionId, [systemMsg, ...history.slice(-20)]);
   }
 
   return result;
@@ -53,19 +51,18 @@ async function tryLLM(
   onChunk: (text: string) => void,
 ): Promise<string> {
   try {
-    return await deepseekChat(messages, onChunk);
+    return await openrouterChat(DEEPSEEK_MODEL, messages, onChunk);
   } catch (err) {
     console.warn("[JAX] DeepSeek failed, trying Kimi:", (err as Error).message);
     try {
-      return await kimiChat(messages, onChunk);
+      return await openrouterChat(KIMI_MODEL, messages, onChunk);
     } catch (err2) {
       console.error("[JAX] Kimi also failed:", (err2 as Error).message);
       const fallback =
-        "I'm afraid my neural circuits aren't fully powered yet, sir. Both DeepSeek and Kimi APIs are unreachable — likely an API key issue.\n\n" +
-        "To activate me, add your keys to the `.env` file:\n" +
-        "  • DeepSeek: sign up at platform.deepseek.com (free credits)\n" +
-        "  • Kimi: sign up at platform.moonshot.cn (free credits)\n\n" +
-        "Once configured, restart the server and I'll be at full capacity.";
+        "I'm afraid my neural circuits aren't fully powered yet, sir. The API key seems to be missing or invalid.\n\n" +
+        "To activate me, sign up at openrouter.ai for a free API key, then add it to `.env`:\n" +
+        "  OPENROUTER_API_KEY=sk-or-v1-your-key\n\n" +
+        "One key gives access to DeepSeek, Kimi, and many other models. Restart me once configured.";
       onChunk(fallback);
       return fallback;
     }
