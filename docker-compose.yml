@@ -39,3 +39,15 @@ services:
     volumes:
       - ./data/n8n:/home/node/.n8n
     restart: unless-stopped
+
+  # Leon voice assistant — uncomment to enable offline voice processing
+  # leon:
+  #   image: leonai/leon:latest
+  #   ports:
+  #     - "1337:1337"
+  #   environment:
+  #     - LEON_LANG=en
+  #     - LEON_TELEMETRY=false
+  #   volumes:
+  #     - ./data/leon:/home/leon/data
+  #   restart: unless-stopped
