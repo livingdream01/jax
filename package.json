@@ -1,8 +1,8 @@
 {
-  "name": "jax",
+  "name": "apex",
   "version": "0.1.0",
   "private": true,
-  "description": "JAX — A Jarvis-style personal assistant",
+  "description": "APEX — A Jarvis-style personal assistant",
   "workspaces": [
     "server",
     "client"

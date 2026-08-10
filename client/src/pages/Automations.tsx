@@ -27,7 +27,7 @@ export default function Automations() {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="border-b border-jax-border px-6 py-4 flex items-center justify-between shrink-0">
+      <header className="border-b border-apex-border px-6 py-4 flex items-center justify-between shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-gray-200">Automations</h2>
           <p className="text-sm text-gray-500">
@@ -39,7 +39,7 @@ export default function Automations() {
       <div className="flex-1 overflow-y-auto p-6">
         {loading && (
           <div className="flex items-center justify-center h-full text-gray-500">
-            <div className="w-6 h-6 border-2 border-jax-cyan border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-apex-cyan border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
@@ -47,8 +47,8 @@ export default function Automations() {
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <p className="text-4xl mb-3">⚡</p>
             <p className="text-lg font-medium text-gray-400 mb-2">No automations yet</p>
-            <p className="text-sm mb-4">Create one by chatting with Jax:</p>
-            <div className="bg-jax-surface border border-jax-border rounded-lg p-4 max-w-md">
+            <p className="text-sm mb-4">Create one by chatting with Apex:</p>
+            <div className="bg-apex-surface border border-apex-border rounded-lg p-4 max-w-md">
               <p className="text-xs text-gray-400 font-mono">
                 /automate every morning at 8am compile tech news briefing
               </p>
@@ -59,7 +59,7 @@ export default function Automations() {
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="bg-jax-surface border border-jax-border rounded-lg p-4 mb-3"
+            className="bg-apex-surface border border-apex-border rounded-lg p-4 mb-3"
           >
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-3">
@@ -73,7 +73,7 @@ export default function Automations() {
                 <button
                   onClick={() => toggleTask(task.id, !task.enabled)}
                   className={`relative w-10 h-6 rounded-full transition-colors ${
-                    task.enabled ? "bg-jax-cyan" : "bg-jax-border"
+                    task.enabled ? "bg-apex-cyan" : "bg-apex-border"
                   }`}
                 >
                   <span
@@ -92,14 +92,14 @@ export default function Automations() {
             </div>
 
             <div className="flex items-center gap-3 text-[10px] text-gray-600">
-              <span className="px-1.5 py-0.5 rounded bg-black/20 border border-jax-border">
+              <span className="px-1.5 py-0.5 rounded bg-black/20 border border-apex-border">
                 {task.cronExpression}
               </span>
               {task.type === "briefing" && (
-                <span className="text-jax-cyan">Briefing · {JSON.parse(task.params || "{}").category || "all"}</span>
+                <span className="text-apex-cyan">Briefing · {JSON.parse(task.params || "{}").category || "all"}</span>
               )}
               {task.type === "search" && (
-                <span className="text-jax-amber">Search · {JSON.parse(task.params || "{}").query || "custom"}</span>
+                <span className="text-apex-amber">Search · {JSON.parse(task.params || "{}").query || "custom"}</span>
               )}
               {task.lastRun && (
                 <span className={task.lastStatus === "success" ? "text-emerald-400" : "text-red-400"}>
@@ -111,9 +111,9 @@ export default function Automations() {
         ))}
       </div>
 
-      <div className="border-t border-jax-border px-6 py-3 shrink-0">
+      <div className="border-t border-apex-border px-6 py-3 shrink-0">
         <p className="text-xs text-gray-600">
-          Use <code className="text-jax-cyan">/automate</code> in chat to create new tasks via natural language
+          Use <code className="text-apex-cyan">/automate</code> in chat to create new tasks via natural language
         </p>
       </div>
     </div>

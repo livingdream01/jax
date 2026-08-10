@@ -281,7 +281,7 @@ Output ONLY the JSON, no other text:`;
               }),
             );
           } else {
-            const prompt = `You are JAX, personal assistant. Deliver a concise, Reuters-style briefing of these top ${top.length} articles. No intro, no filler. For each: bold headline, then one sharp factual sentence. Group by relevance if possible. End with "End of briefing, sir." Do not mention your name or persona in the response.
+            const prompt = `You are APEX, personal assistant. Deliver a concise, Reuters-style briefing of these top ${top.length} articles. No intro, no filler. For each: bold headline, then one sharp factual sentence. Group by relevance if possible. End with "End of briefing, sir." Do not mention your name or persona in the response.
 
 Articles:
 ${top
@@ -292,7 +292,7 @@ ${top
   .join("\n\n")}`;
 
             const messages = [
-              { role: "system" as const, content: "You are JAX, Tony Stark-style personal assistant." },
+              { role: "system" as const, content: "You are APEX, Tony Stark-style personal assistant." },
               { role: "user" as const, content: prompt },
             ];
 
@@ -373,7 +373,7 @@ async function handleSearch(ws: WebSocket, query: string) {
         .join("\n\n");
 
       const messages = [
-        { role: "system" as const, content: "You are JAX. Summarize these search results concisely. One sentence per result. End with 'Anything else, sir?'" },
+        { role: "system" as const, content: "You are APEX. Summarize these search results concisely. One sentence per result. End with 'Anything else, sir?'" },
         { role: "user" as const, content: `Query: ${query}\n\nResults:\n${summary}` },
       ];
 

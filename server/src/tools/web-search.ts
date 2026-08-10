@@ -58,7 +58,7 @@ async function tavilySearch(query: string): Promise<{ results: SearchResult[]; a
 function httpsGet(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
     https
-      .get(url, { rejectUnauthorized: false, headers: { "User-Agent": "JAX/1.0" } }, (res) => {
+      .get(url, { rejectUnauthorized: false, headers: { "User-Agent": "APEX/1.0" } }, (res) => {
         let body = "";
         res.on("data", (chunk: string) => (body += chunk));
         res.on("end", () => resolve(body));
@@ -114,11 +114,11 @@ export async function webSearch(query: string): Promise<{ results: SearchResult[
   try {
     return await tavilySearch(query);
   } catch (err) {
-    console.warn("[JAX] Tavily failed, trying DDG fallback:", (err as Error).message);
+    console.warn("[APEX] Tavily failed, trying DDG fallback:", (err as Error).message);
     try {
       return await ddgSearch(query);
     } catch (err2) {
-      console.error("[JAX] DDG fallback also failed:", (err2 as Error).message);
+      console.error("[APEX] DDG fallback also failed:", (err2 as Error).message);
       return { results: [], answer: "Search engines unavailable at the moment, sir." };
     }
   }

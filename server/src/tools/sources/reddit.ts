@@ -49,7 +49,7 @@ function isUseful(title: string): boolean {
 async function fetchSubreddit(sub: { name: string; category: string }): Promise<Article[]> {
   try {
     const res = await fetch(`https://www.reddit.com/${sub.name}/hot.json?limit=20`, {
-      headers: { "User-Agent": "JAX/1.0" },
+      headers: { "User-Agent": "APEX/1.0" },
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return [];

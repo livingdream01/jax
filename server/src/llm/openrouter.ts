@@ -18,8 +18,8 @@ export async function openrouterChat(
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://jax.local",
-      "X-Title": "JAX",
+      "HTTP-Referer": "https://apex.local",
+      "X-Title": "APEX",
     },
     body: JSON.stringify({
       model,

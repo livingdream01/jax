@@ -37,11 +37,11 @@ export default function App() {
   ];
 
   return (
-    <div className="flex h-screen bg-jax-dark">
-      <nav className="w-16 md:w-56 bg-jax-surface border-r border-jax-border flex flex-col">
-        <div className="p-4 border-b border-jax-border">
-          <h1 className="text-jax-cyan font-bold text-xl hidden md:block">JAX</h1>
-          <span className="text-jax-cyan font-bold text-xl md:hidden">J</span>
+    <div className="flex h-screen bg-apex-dark">
+      <nav className="w-16 md:w-56 bg-apex-surface border-r border-apex-border flex flex-col">
+        <div className="p-4 border-b border-apex-border">
+          <h1 className="text-apex-cyan font-bold text-xl hidden md:block">APEX</h1>
+          <span className="text-apex-cyan font-bold text-xl md:hidden">A</span>
         </div>
 
         <div className="flex-1 py-2">
@@ -51,7 +51,7 @@ export default function App() {
               onClick={() => setPage(p.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-left ${
                 page === p.id
-                  ? "bg-jax-blue/10 text-jax-cyan border-r-2 border-jax-cyan"
+                  ? "bg-apex-blue/10 text-apex-cyan border-r-2 border-apex-cyan"
                   : "text-gray-400 hover:text-gray-200 hover:bg-white/5"
               }`}
             >
@@ -61,7 +61,7 @@ export default function App() {
           ))}
         </div>
 
-        <div className="p-4 border-t border-jax-border">
+        <div className="p-4 border-t border-apex-border">
           <div className={`flex items-center gap-2 ${connected ? "text-emerald-400" : "text-red-400"}`}>
             <span className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-400" : "bg-red-400"}`} />
             <span className="text-xs hidden md:inline">{connected ? "Connected" : "Offline"}</span>
@@ -71,7 +71,7 @@ export default function App() {
 
       <main className="flex-1 overflow-hidden">
         {greeting && (
-          <div className="bg-jax-blue/10 border-b border-jax-border px-6 py-2 text-sm text-jax-cyan">
+          <div className="bg-apex-blue/10 border-b border-apex-border px-6 py-2 text-sm text-apex-cyan">
             {greeting}
           </div>
         )}

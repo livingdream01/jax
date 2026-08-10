@@ -77,7 +77,7 @@ function cleanSummary(html: string): string {
 async function fetchFeed(feed: RssFeed): Promise<Article[]> {
   try {
     const res = await fetch(feed.url, {
-      headers: { "User-Agent": "JAX/1.0" },
+      headers: { "User-Agent": "APEX/1.0" },
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) return [];

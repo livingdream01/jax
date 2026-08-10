@@ -170,7 +170,7 @@ function startJob(
       await runTask(task);
       db.run("UPDATE automations SET last_run = datetime('now'), last_status = 'success' WHERE id = ?", [task.id]);
     } catch (err) {
-      console.error(`[JAX] Automation "${task.name}" failed:`, err);
+      console.error(`[APEX] Automation "${task.name}" failed:`, err);
       db.run("UPDATE automations SET last_run = datetime('now'), last_status = 'failed' WHERE id = ?", [task.id]);
     }
   });

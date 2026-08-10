@@ -61,11 +61,11 @@ async function tryLLM(
   try {
     return await openrouterChat(DEEPSEEK_MODEL, messages, onChunk);
   } catch (err) {
-    console.warn("[JAX] DeepSeek failed, trying Kimi:", (err as Error).message);
+    console.warn("[APEX] DeepSeek failed, trying Kimi:", (err as Error).message);
     try {
       return await openrouterChat(KIMI_MODEL, messages, onChunk);
     } catch (err2) {
-      console.error("[JAX] Kimi also failed:", (err2 as Error).message);
+      console.error("[APEX] Kimi also failed:", (err2 as Error).message);
       const fallback =
         "I'm afraid my neural circuits aren't fully powered yet, sir. The API key seems to be missing or invalid.\n\n" +
         "To activate me, sign up at openrouter.ai for a free API key, then add it to `.env`:\n" +

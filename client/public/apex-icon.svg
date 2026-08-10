@@ -6,5 +6,5 @@
     </linearGradient>
   </defs>
   <circle cx="50" cy="50" r="45" fill="none" stroke="url(#g)" stroke-width="4"/>
-  <text x="50" y="62" text-anchor="middle" font-family="monospace" font-size="40" font-weight="bold" fill="url(#g)">J</text>
+  <text x="50" y="62" text-anchor="middle" font-family="monospace" font-size="40" font-weight="bold" fill="url(#g)">A</text>
 </svg>

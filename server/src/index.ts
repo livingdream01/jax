@@ -28,7 +28,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", name: "JAX", version: "0.1.0" });
+  res.json({ status: "ok", name: "APEX", version: "0.1.0" });
 });
 
 // News
@@ -78,7 +78,7 @@ async function runAutomationTask(task: AutomationTask): Promise<void> {
       const params = JSON.parse(task.params || "{}");
       const category = params.category || undefined;
       const articles = await getNews(category);
-      console.log(`[JAX] Auto-briefing "${task.name}": ${articles.length} articles fetched`);
+      console.log(`[APEX] Auto-briefing "${task.name}": ${articles.length} articles fetched`);
       break;
     }
     case "search": {
@@ -86,7 +86,7 @@ async function runAutomationTask(task: AutomationTask): Promise<void> {
       const query = params.query || "";
       if (query) {
         await webSearch(query);
-        console.log(`[JAX] Auto-search "${task.name}": completed`);
+        console.log(`[APEX] Auto-search "${task.name}": completed`);
       }
       break;
     }
@@ -156,12 +156,12 @@ const sessions = new Map<WebSocket, string>();
 wss.on("connection", (ws) => {
   const sessionId = randomUUID();
   sessions.set(ws, sessionId);
-  console.log(`[JAX] Client connected (${sessionId.slice(0, 8)})`);
+  console.log(`[APEX] Client connected (${sessionId.slice(0, 8)})`);
   handleChat(ws, sessionId);
   ws.on("close", () => { sessions.delete(ws); });
   ws.send(JSON.stringify({
     type: "greeting",
-    text: "Good evening, sir. JAX is fully operational. How may I be of service?",
+    text: "Good evening, sir. APEX is fully operational. How may I be of service?",
   }));
 });
 
@@ -174,12 +174,12 @@ server.listen(port, async () => {
   const activeJobs = tasks.filter((t) => t.enabled).length;
 
   console.log("");
-  console.log("  ██╗ █████╗ ██╗  ██╗");
-  console.log("  ██║██╔══██╗╚██╗██╔╝");
-  console.log("  ██║███████║ ╚███╔╝ ");
-  console.log("  ██║██╔══██║ ██╔██╗ ");
-  console.log("  ██║██║  ██║██╔╝ ██╗");
-  console.log("  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝");
+  console.log("   █████╗ ██████╗ ███████╗██╗  ██╗");
+  console.log("  ██╔══██╗██╔══██╗██╔════╝╚██╗██╔╝");
+  console.log("  ███████║██████╔╝█████╗   ╚███╔╝ ");
+  console.log("  ██╔══██║██╔═══╝ ██╔══╝   ██╔██╗ ");
+  console.log("  ██║  ██║██║     ███████╗██╔╝ ██╗");
+  console.log("  ╚═╝  ╚═╝╚═╝     ╚══════╝╚═╝  ╚═╝");
   console.log("");
   console.log(`  Server:    http://localhost:${port}`);
   console.log("  Dashboard: http://localhost:5173");

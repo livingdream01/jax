@@ -1,5 +1,5 @@
 services:
-  jax-server:
+  apex-server:
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -16,14 +16,14 @@ services:
       - ./data:/app/data
     restart: unless-stopped
 
-  jax-client:
+  apex-client:
     build:
       context: ./client
       dockerfile: Dockerfile
     ports:
       - "5173:5173"
     depends_on:
-      - jax-server
+      - apex-server
     restart: unless-stopped
 
   n8n:

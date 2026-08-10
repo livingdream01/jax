@@ -1,4 +1,4 @@
-# JAX — Personal AI Assistant
+# APEX — Personal AI Assistant
 
 A Jarvis-style personal assistant. Witty, sharp, at your service.
 
@@ -9,7 +9,7 @@ Built with Node.js + TypeScript + React + Docker.
 ```
 Browser (localhost:5173)
     │
-    ├── WebSocket ←→ JAX Server (:3001)
+    ├── WebSocket ←→ APEX Server (:3001)
     │                    │
     │    ┌───────────────┼───────────────┐
     │    ▼               ▼               ▼
@@ -31,7 +31,7 @@ Browser (localhost:5173)
 | Phase | Feature | Status |
 |-------|---------|--------|
 | 0 | Monorepo scaffold, Docker, GitHub CI-ready | Done |
-| 1 | Jax chat — DeepSeek + Kimi fallback, streaming WebSocket, Jarvis persona | Done |
+| 1 | Apex chat — DeepSeek + Kimi fallback, streaming WebSocket, Jarvis persona | Done |
 | 2 | News aggregation hub — NewsAPI/GNews, dashboard, AI briefing | Next |
 | 3 | Web research agent — search, fetch, summarize, source citations | Planned |
 | 4 | Task automation — natural language &#8594; cron, visual editor, logs | Planned |
@@ -51,8 +51,8 @@ Browser (localhost:5173)
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/livingdream01/jax.git
-cd jax
+git clone https://github.com/livingdream01/apex.git
+cd apex
 cp .env.example .env
 npm install
 ```
@@ -85,17 +85,17 @@ npm run dev
 docker compose up
 ```
 
-Open **http://localhost:5173** — JAX is ready.
+Open **http://localhost:5173** — APEX is ready.
 
 ---
 
 ## Workflows
 
-### Chat with Jax
+### Chat with Apex
 
 ```
-You: "Jax, what can you do for me?"
-Jax: "I'm fully operational, sir. Research, news briefings,
+You: "Apex, what can you do for me?"
+Apex: "I'm fully operational, sir. Research, news briefings,
       automation scheduling, technical analysis — name it."
           ▲
           │ Typewriter effect,
@@ -103,7 +103,7 @@ Jax: "I'm fully operational, sir. Research, news briefings,
 ```
 
 1. Type a message or click a suggested prompt.
-2. Jax routes to DeepSeek (primary) — falls back to Kimi if unavailable.
+2. Apex routes to DeepSeek (primary) — falls back to Kimi if unavailable.
 3. Response streams in with a typing indicator.
 4. Conversation history persists for the session (last 20 messages).
 
@@ -123,12 +123,12 @@ Graceful error message:
 "I'm afraid both systems are unavailable, sir."
 ```
 
-No single API failure blocks Jax. Two independent providers.
+No single API failure blocks Apex. Two independent providers.
 
 ### News Briefing (Phase 2 — coming next)
 
 ```
-"Jax, morning briefing"
+"Apex, morning briefing"
     │
     ▼
 Fetch NewsAPI headlines   ──fail──▶ Fetch GNews headlines
@@ -136,7 +136,7 @@ Fetch NewsAPI headlines   ──fail──▶ Fetch GNews headlines
     └──────────── merge + dedupe ────────┘
                     │
                     ▼
-            Jax summarizes top 5
+            Apex summarizes top 5
             ▶ Displayed in News Hub
             ▶ Spoken if voice enabled
 ```
@@ -144,13 +144,13 @@ Fetch NewsAPI headlines   ──fail──▶ Fetch GNews headlines
 ### Research Agent (Phase 3 — planned)
 
 ```
-"Jax, search latest quantum computing breakthroughs"
+"Apex, search latest quantum computing breakthroughs"
     │
     ▼
 Web search → fetch top 3 pages → extract content
     │
     ▼
-Jax summarizes each + cites sources
+Apex summarizes each + cites sources
     │
     ▼
 Response with inline citations:
@@ -161,7 +161,7 @@ Response with inline citations:
 ### Task Automation (Phase 4 — planned)
 
 ```
-"Jax, every weekday at 7AM, compile tech headlines and summarize"
+"Apex, every weekday at 7AM, compile tech headlines and summarize"
     │
     ▼
 Natural language → parsed cron expression
@@ -185,22 +185,22 @@ Visual editor shows all active tasks with:
 
 ```bash
 # On your server
-git clone https://github.com/livingdream01/jax.git
-cd jax
+git clone https://github.com/livingdream01/apex.git
+cd apex
 cp .env.example .env
 # Fill in .env with your API keys
 
 docker compose up -d
 ```
 
-JAX runs at `http://<your-server-ip>:5173`.
+APEX runs at `http://<your-server-ip>:5173`.
 
 ### Option B — Nginx Reverse Proxy
 
 ```nginx
 server {
     listen 80;
-    server_name jax.yourdomain.com;
+    server_name apex.yourdomain.com;
 
     location / {
         proxy_pass http://127.0.0.1:5173;
@@ -226,21 +226,21 @@ server {
 ### Option C — Caddy (Simplest)
 
 ```
-jax.yourdomain.com {
+apex.yourdomain.com {
     reverse_proxy /api/* 127.0.0.1:3001
     reverse_proxy /ws 127.0.0.1:3001
     reverse_proxy 127.0.0.1:5173
 }
 ```
 
-Then `docker compose up -d` and visit `https://jax.yourdomain.com`.
+Then `docker compose up -d` and visit `https://apex.yourdomain.com`.
 
 ---
 
 ## Project Structure
 
 ```
-jax/
+apex/
 ├── server/                  # Express + TypeScript backend
 │   ├── src/
 │   │   ├── index.ts         # Entry — Express + WebSocket server

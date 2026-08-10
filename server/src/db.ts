@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 
 let db: Database;
-const DB_PATH = join(process.cwd(), "..", "data", "jax-memory.db");
+const DB_PATH = join(process.cwd(), "..", "data", "apex-memory.db");
 
 export async function getDb(): Promise<Database> {
   if (db) return db;

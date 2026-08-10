@@ -49,7 +49,7 @@ export default function News() {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="border-b border-jax-border px-6 py-4 flex items-center justify-between shrink-0">
+      <header className="border-b border-apex-border px-6 py-4 flex items-center justify-between shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-gray-200">News Hub</h2>
           <p className="text-sm text-gray-500">
@@ -61,20 +61,20 @@ export default function News() {
         <button
           onClick={refresh}
           disabled={loading}
-          className="bg-jax-blue/10 text-jax-cyan border border-jax-blue/30 px-4 py-2 rounded-lg text-sm font-medium hover:bg-jax-blue/20 transition-colors disabled:opacity-50"
+          className="bg-apex-blue/10 text-apex-cyan border border-apex-blue/30 px-4 py-2 rounded-lg text-sm font-medium hover:bg-apex-blue/20 transition-colors disabled:opacity-50"
         >
           {loading ? "Refreshing..." : "Refresh"}
         </button>
       </header>
 
-      <div className="border-b border-jax-border px-6 py-2 flex gap-1 shrink-0">
+      <div className="border-b border-apex-border px-6 py-2 flex gap-1 shrink-0">
         {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             onClick={() => switchCategory(cat.id)}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               category === cat.id
-                ? "bg-jax-blue/10 text-jax-cyan"
+                ? "bg-apex-blue/10 text-apex-cyan"
                 : "text-gray-500 hover:text-gray-300"
             }`}
           >
@@ -86,7 +86,7 @@ export default function News() {
       <div className="flex-1 overflow-y-auto p-6">
         {loading && articles.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-3">
-            <div className="w-8 h-8 border-2 border-jax-cyan border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-apex-cyan border-t-transparent rounded-full animate-spin" />
             <p className="text-sm">Fetching latest headlines...</p>
           </div>
         )}
@@ -118,11 +118,11 @@ export default function News() {
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block bg-jax-surface border border-jax-border rounded-lg p-4 hover:border-jax-cyan/50 transition-colors group"
+                  className="block bg-apex-surface border border-apex-border rounded-lg p-4 hover:border-apex-cyan/50 transition-colors group"
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-medium text-gray-200 group-hover:text-jax-cyan transition-colors leading-snug">
+                      <h3 className="text-sm font-medium text-gray-200 group-hover:text-apex-cyan transition-colors leading-snug">
                         {article.title}
                       </h3>
                       {article.summary && (
@@ -141,7 +141,7 @@ export default function News() {
                         </span>
                       </div>
                     </div>
-                    <span className="text-gray-600 group-hover:text-jax-cyan transition-colors shrink-0 mt-0.5">
+                    <span className="text-gray-600 group-hover:text-apex-cyan transition-colors shrink-0 mt-0.5">
                       ↗
                     </span>
                   </div>

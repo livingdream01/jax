@@ -7,7 +7,7 @@ interface SearchResult {
   score?: number;
 }
 
-interface JaxMessage {
+interface ApexMessage {
   id: string;
   role: "jax" | "user";
   text: string;
@@ -18,7 +18,7 @@ interface JaxMessage {
 
 export function useChat() {
   const wsRef = useRef<WebSocket | null>(null);
-  const [messages, setMessages] = useState<JaxMessage[]>([]);
+  const [messages, setMessages] = useState<ApexMessage[]>([]);
   const [connected, setConnected] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const streamingRef = useRef("");

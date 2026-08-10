@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  --color-jax-blue: #3B82F6;
-  --color-jax-cyan: #06B6D4;
-  --color-jax-amber: #F59E0B;
-  --color-jax-dark: #0F172A;
-  --color-jax-surface: #1E293B;
-  --color-jax-border: #334155;
+  --color-apex-blue: #3B82F6;
+  --color-apex-cyan: #06B6D4;
+  --color-apex-amber: #F59E0B;
+  --color-apex-dark: #0F172A;
+  --color-apex-surface: #1E293B;
+  --color-apex-border: #334155;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-jax-border) transparent;
+  scrollbar-color: var(--color-apex-border) transparent;
 }
 
 body {
