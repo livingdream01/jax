@@ -1,9 +1,12 @@
+import { loadEnvFile } from "node:process";
 import express from "express";
 import cors from "cors";
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { handleChat } from "./ws-chat.js";
 import { randomUUID } from "node:crypto";
+
+try { loadEnvFile("../.env"); } catch { /* optional */ }
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -42,5 +45,21 @@ wss.on("connection", (ws) => {
 });
 
 server.listen(port, () => {
-  console.log(`[JAX] Server running on port ${port}`);
+  const ds = process.env.DEEPSEEK_API_KEY?.startsWith("sk-") && process.env.DEEPSEEK_API_KEY !== "sk-placeholder";
+  const kimi = process.env.KIMI_API_KEY?.startsWith("sk-") && process.env.KIMI_API_KEY !== "sk-placeholder";
+
+  console.log("");
+  console.log("  ██╗ █████╗ ██╗  ██╗");
+  console.log("  ██║██╔══██╗╚██╗██╔╝");
+  console.log("  ██║███████║ ╚███╔╝ ");
+  console.log("  ██║██╔══██║ ██╔██╗ ");
+  console.log("  ██║██║  ██║██╔╝ ██╗");
+  console.log("  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝");
+  console.log("");
+  console.log(`  Server:   http://localhost:${port}`);
+  console.log(`  Dashboard: http://localhost:5173`);
+  console.log("");
+  console.log(`  DeepSeek API: ${ds ? "✓ Configured" : "✗ Missing — sign up at platform.deepseek.com (free credits)"}`);
+  console.log(`  Kimi API:     ${kimi ? "✓ Configured" : "✗ Missing — sign up at platform.moonshot.cn (free credits)"}`);
+  console.log("");
 });

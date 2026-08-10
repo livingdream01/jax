@@ -61,7 +61,11 @@ async function tryLLM(
     } catch (err2) {
       console.error("[JAX] Kimi also failed:", (err2 as Error).message);
       const fallback =
-        "I'm afraid both my primary and backup systems are unavailable at the moment, sir. I suggest checking your API keys and trying again shortly.";
+        "I'm afraid my neural circuits aren't fully powered yet, sir. Both DeepSeek and Kimi APIs are unreachable — likely an API key issue.\n\n" +
+        "To activate me, add your keys to the `.env` file:\n" +
+        "  • DeepSeek: sign up at platform.deepseek.com (free credits)\n" +
+        "  • Kimi: sign up at platform.moonshot.cn (free credits)\n\n" +
+        "Once configured, restart the server and I'll be at full capacity.";
       onChunk(fallback);
       return fallback;
     }
