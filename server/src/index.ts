@@ -4,6 +4,7 @@ import cors from "cors";
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { handleChat } from "./ws-chat.js";
+import { getNews, clearNewsCache } from "./tools/news.js";
 import { randomUUID } from "node:crypto";
 
 try { loadEnvFile("../.env"); } catch { /* optional */ }
@@ -16,6 +17,22 @@ app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", name: "JAX", version: "0.1.0" });
+});
+
+app.get("/api/news", async (req, res) => {
+  try {
+    const category = req.query.category as string | undefined;
+    const articles = await getNews(category);
+    res.json({ articles, count: articles.length, cached: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch news" });
+  }
+});
+
+app.post("/api/news/refresh", async (_req, res) => {
+  clearNewsCache();
+  const articles = await getNews();
+  res.json({ articles, count: articles.length, refreshed: true });
 });
 
 const server = createServer(app);

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useChat } from "../hooks/useChat";
 
 export default function Chat() {
-  const { messages, connected, streaming, sendMessage, clearChat } = useChat();
+  const { messages, connected, streaming, sendMessage, sendBriefing, clearChat } = useChat();
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +40,13 @@ export default function Chat() {
           <p className="text-sm text-gray-500">Your personal assistant — at your service, sir.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => sendBriefing()}
+            disabled={streaming}
+            className="text-xs bg-jax-blue/10 text-jax-cyan border border-jax-blue/30 px-3 py-1.5 rounded-md hover:bg-jax-blue/20 transition-colors disabled:opacity-50"
+          >
+            Briefing
+          </button>
           <span className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-400" : "bg-red-400"}`} />
           <span className="text-xs text-gray-500">{connected ? "Online" : "Connecting..."}</span>
           <button

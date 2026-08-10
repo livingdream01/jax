@@ -120,10 +120,24 @@ export function useChat() {
     wsRef.current.send(JSON.stringify({ command: "chat", text }));
   }, []);
 
+  const sendBriefing = useCallback((category?: string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || streaming) return;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `user-${Date.now()}`,
+        role: "user",
+        text: category ? `${category} briefing` : "Daily briefing",
+        timestamp: Date.now(),
+      },
+    ]);
+    wsRef.current.send(JSON.stringify({ command: "briefing", category: category || "all" }));
+  }, [streaming]);
+
   const clearChat = useCallback(() => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ command: "clear" }));
   }, []);
 
-  return { messages, connected, streaming, sendMessage, clearChat };
+  return { messages, connected, streaming, sendMessage, sendBriefing, clearChat };
 }
