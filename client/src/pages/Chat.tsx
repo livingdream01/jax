@@ -8,13 +8,12 @@ export default function Chat() {
     isListening,
     transcript,
     toggleListening,
-    stopListening,
     speak,
     stopSpeaking,
     isSpeaking,
     autoSpeak,
     setAutoSpeak,
-    wakeWordDetected,
+    error: voiceError,
   } = useVoice();
 
   const [input, setInput] = useState("");
@@ -26,22 +25,19 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-fill and send when voice command captured
+  // Auto-send when voice input captured a complete phrase
+  const prevListeningRef = useRef(isListening);
   useEffect(() => {
-    if (transcript && !isListening && transcript.length > 1) {
+    if (!isListening && prevListeningRef.current && transcript.trim()) {
       const command = transcript.trim();
-      setInput(command);
-      // Auto-send after a tick
-      setTimeout(() => {
-        if (command.startsWith("search ") || command.startsWith("look up ")) {
-          const query = command.replace(/^(search |look up )/, "");
-          sendSearch(query);
-        } else {
-          sendMessage(command);
-        }
-      }, 200);
+      if (command.startsWith("search ") || command.startsWith("look up ")) {
+        sendSearch(command.replace(/^(search |look up )/, ""));
+      } else {
+        sendMessage(command);
+      }
     }
-  }, [transcript, isListening]);
+    prevListeningRef.current = isListening;
+  }, [isListening, transcript]);
 
   let lastApexId = useRef("");
 
@@ -58,7 +54,7 @@ export default function Chat() {
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || streaming) return;
-    if (isListening) stopListening();
+    if (isListening) toggleListening();
     if (searchMode) {
       sendSearch(trimmed);
       setSearchMode(false);
@@ -243,11 +239,16 @@ export default function Chat() {
             </span>
           </div>
         )}
+        {voiceError && !isListening && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-red-400">{voiceError}</span>
+          </div>
+        )}
         {isListening && (
           <div className="flex items-center gap-2 mb-2">
-            <span className={`text-xs flex items-center gap-1 ${wakeWordDetected ? "text-apex-cyan" : "text-gray-500"}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${wakeWordDetected ? "bg-apex-cyan animate-pulse" : "bg-gray-500"}`} />
-              {wakeWordDetected ? "Listening... speak your command" : "Say \"Hey Apex\"..."}
+            <span className="text-xs text-apex-cyan flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-apex-cyan animate-pulse" />
+              Listening — speak now
             </span>
           </div>
         )}
@@ -257,12 +258,10 @@ export default function Chat() {
             disabled={streaming}
             className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 ${
               isListening
-                ? wakeWordDetected
-                  ? "bg-apex-cyan/20 text-apex-cyan border border-apex-cyan/30 animate-pulse"
-                  : "bg-gray-700/30 text-gray-400 border border-gray-600/30"
+                ? "bg-apex-cyan/20 text-apex-cyan border border-apex-cyan/30 animate-pulse"
                 : "bg-apex-surface border border-apex-border text-gray-500 hover:text-apex-cyan hover:border-apex-cyan"
             }`}
-            title={isListening ? "Click to stop listening" : "Click for always-on voice mode"}
+            title={isListening ? "Stop listening" : "Start voice input"}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />

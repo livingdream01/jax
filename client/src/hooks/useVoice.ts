@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 
 interface VoiceHook {
   isListening: boolean;
   transcript: string;
+  listeningForWake: boolean;
   startListening: () => void;
   stopListening: () => void;
   toggleListening: () => void;
@@ -11,192 +12,159 @@ interface VoiceHook {
   isSpeaking: boolean;
   autoSpeak: boolean;
   setAutoSpeak: (v: boolean) => void;
-  wakeWordDetected: boolean;
-  wakePhrase: string;
-  setWakePhrase: (p: string) => void;
+  error: string;
 }
 
 const SpeechRecognitionAPI =
-  (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  (typeof window !== "undefined" &&
+    ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) ||
+  null;
 
-const synth = window.speechSynthesis;
+const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
 
 export function useVoice(): VoiceHook {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [listeningForWake, setListeningForWake] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [autoSpeak, setAutoSpeak] = useState(false);
-  const [wakeWordDetected, setWakeWordDetected] = useState(false);
-  const [wakePhrase, setWakePhrase] = useState("hey apex");
-
+  const [error, setError] = useState("");
   const recognitionRef = useRef<any>(null);
-  const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastResultRef = useRef("");
 
   const startListening = useCallback(() => {
-    if (!SpeechRecognitionAPI) return;
+    if (!SpeechRecognitionAPI) {
+      setError("Voice not supported in this browser. Try Chrome or Safari.");
+      return;
+    }
+
+    setError("");
 
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch {}
     }
 
-    const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognition.maxAlternatives = 1;
+    try {
+      const recognition = new SpeechRecognitionAPI();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+      recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onerror = (e: any) => {
-      if (e.error === "no-speech" || e.error === "aborted") return;
-      setIsListening(false);
-      // Auto-restart on error
-      setTimeout(() => {
-        if (recognitionRef.current === recognition) {
-          try { recognition.start(); } catch {}
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let finalText = "";
+        let interimText = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const text = event.results[i][0].transcript.trim();
+          if (event.results[i].isFinal) {
+            finalText += " " + text;
+          } else {
+            interimText += " " + text;
+          }
         }
-      }, 500);
-    };
-    recognition.onend = () => {
-      // Auto-restart if still in listening mode
-      if (recognitionRef.current === recognition) {
-        try { recognition.start(); } catch {}
-      } else {
+
+        const displayText = finalText || interimText;
+        if (displayText) {
+          setTranscript(displayText.trim());
+        }
+
+        if (finalText.trim()) {
+          setTranscript(finalText.trim());
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("Speech recognition error:", event.error, event.message);
+        if (event.error === "not-allowed") {
+          setError("Microphone access denied. Check your browser permissions.");
+        } else if (event.error === "no-speech") {
+          setError("No speech detected. Try again.");
+        } else if (event.error === "audio-capture") {
+          setError("No microphone found.");
+        } else if (event.error !== "aborted") {
+          setError(`Voice error: ${event.error}`);
+        }
         setIsListening(false);
-      }
-    };
+        setListeningForWake(false);
+      };
 
-    recognition.onresult = (event: any) => {
-      let interim = "";
-      let final = "";
+      recognition.onend = () => {
+        setIsListening(false);
+        setListeningForWake(false);
+      };
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        const text = result[0].transcript.trim().toLowerCase();
-        if (result.isFinal) {
-          final += " " + text;
-        } else {
-          interim += " " + text;
-        }
-      }
-
-      const combined = (final || interim).trim();
-      if (!combined) return;
-
-      lastResultRef.current = combined;
-
-      // Wake word detection
-      const wakeRegex = new RegExp(`\\b(hey\\s+)?${wakePhrase.replace("hey ", "")}\\b`, "i");
-      if (!wakeWordDetected && wakeRegex.test(combined)) {
-        setWakeWordDetected(true);
-        setTranscript("");
-        // Play a subtle acknowledgment
-        const beep = new AudioContext();
-        const osc = beep.createOscillator();
-        const gain = beep.createGain();
-        osc.connect(gain);
-        gain.connect(beep.destination);
-        osc.frequency.value = 880;
-        osc.type = "sine";
-        gain.gain.value = 0.05;
-        osc.start();
-        setTimeout(() => { osc.stop(); beep.close(); }, 150);
-
-        // Capture what follows the wake word
-        const afterWake = combined.replace(wakeRegex, "").trim();
-        if (afterWake) {
-          setTranscript(afterWake);
-          stopListening();
-          return;
-        }
-        return;
-      }
-
-      // After wake word, capture the command
-      if (wakeWordDetected && final) {
-        const afterWake = final.replace(wakeRegex, "").trim();
-        if (afterWake) {
-          setTranscript(afterWake);
-          setWakeWordDetected(false);
-          stopListening();
-        }
-      }
-
-      // Reset silence timer
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-      }
-      silenceTimeoutRef.current = setTimeout(() => {
-        setWakeWordDetected(false);
-      }, 8000);
-    };
-
-    recognitionRef.current = recognition;
-    try { recognition.start(); } catch {}
-
-    // Reset wake state after 8s of no speech
-    if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
-  }, [wakeWordDetected, wakePhrase]);
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e) {
+      setError("Failed to start voice. Check microphone permissions.");
+    }
+  }, []);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
-      const rec = recognitionRef.current;
+      try { recognitionRef.current.abort(); } catch {}
       recognitionRef.current = null;
-      try { rec.abort(); } catch {}
     }
     setIsListening(false);
-    setWakeWordDetected(false);
-    if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+    setListeningForWake(false);
   }, []);
 
   const toggleListening = useCallback(() => {
     if (isListening) {
       stopListening();
     } else {
+      setTranscript("");
       startListening();
     }
   }, [isListening, startListening, stopListening]);
 
   const speak = useCallback((text: string) => {
     if (!synth) return;
-
     synth.cancel();
-    const cleanText = text.replace(/\*\*/g, "").replace(/`/g, "").replace(/#{1,6}\s/g, "").trim();
+
+    const cleanText = text
+      .replace(/\*\*/g, "")
+      .replace(/`/g, "")
+      .replace(/#{1,6}\s/g, "")
+      .trim();
+
     if (!cleanText) return;
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.05;
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
     utterance.volume = 1;
 
-    // Load voices if needed and pick the best available
-    const loadVoicesAndSpeak = () => {
-      const voices = synth.getVoices();
-      if (voices.length === 0) {
-        setTimeout(loadVoicesAndSpeak, 100);
-        return;
-      }
-      const preferred = voices.find(
-        (v) => v.name.includes("Daniel") || v.name.includes("Google UK Male") || v.name.includes("Arthur"),
-      ) || voices.find((v) => v.lang.startsWith("en-GB")) || voices.find((v) => v.lang.startsWith("en-US"));
-      if (preferred) utterance.voice = preferred;
+    const voices = synth.getVoices();
+    const preferred =
+      voices.find((v) => v.lang === "en-GB" && v.name.includes("Daniel")) ||
+      voices.find((v) => v.lang === "en-GB") ||
+      voices.find((v) => v.lang.startsWith("en"));
 
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+    if (preferred) utterance.voice = preferred;
 
-      synth.speak(utterance);
-    };
-    loadVoicesAndSpeak();
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    synth.speak(utterance);
   }, []);
 
   const stopSpeaking = useCallback(() => {
-    if (synth) { synth.cancel(); setIsSpeaking(false); }
+    if (synth) {
+      synth.cancel();
+      setIsSpeaking(false);
+    }
   }, []);
 
   return {
     isListening,
     transcript,
+    listeningForWake,
     startListening,
     stopListening,
     toggleListening,
@@ -205,8 +173,6 @@ export function useVoice(): VoiceHook {
     isSpeaking,
     autoSpeak,
     setAutoSpeak,
-    wakeWordDetected,
-    wakePhrase,
-    setWakePhrase,
+    error,
   };
 }
