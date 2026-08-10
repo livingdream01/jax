@@ -81,10 +81,10 @@ export default function Chat() {
   };
 
   const suggestedPrompts = [
-    "What can you do for me, Apex?",
-    "/research quantum computing market 2026",
-    "Search latest AI breakthroughs",
-    "Give me a tech news briefing",
+    "/agenda",
+    "/research quantum computing 2026",
+    "/stock AAPL",
+    "/focus 25m deep work",
   ];
 
   return (
@@ -120,6 +120,22 @@ export default function Chat() {
             className="text-xs bg-apex-blue/10 text-apex-cyan border border-apex-blue/30 px-3 py-1.5 rounded-md hover:bg-apex-blue/20 transition-colors disabled:opacity-50"
           >
             Briefing
+          </button>
+          <button
+            onClick={() => sendMessage("/agenda")}
+            disabled={streaming}
+            className="text-xs text-gray-500 border border-transparent hover:text-gray-300 transition-colors px-2 py-1.5 rounded-md"
+            title="Today's agenda"
+          >
+            Agenda
+          </button>
+          <button
+            onClick={() => sendMessage("/focus 25m")}
+            disabled={streaming}
+            className="text-xs text-gray-500 border border-transparent hover:text-gray-300 transition-colors px-2 py-1.5 rounded-md"
+            title="Start 25m focus session"
+          >
+            Focus
           </button>
           <span className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-400" : "bg-red-400"}`} />
           <span className="text-xs text-gray-500 hidden sm:inline">{connected ? "Online" : "Connecting..."}</span>

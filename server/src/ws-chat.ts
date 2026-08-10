@@ -3,6 +3,9 @@ import { chat, clearHistory } from "./llm/router.js";
 import { getNews } from "./tools/news.js";
 import { webSearch } from "./tools/web-search.js";
 import { deepResearch } from "./tools/research.js";
+import { getTodayEvents, getTomorrowEvents, getWeekEvents, formatAgenda } from "./tools/calendar.js";
+import { getStock, getCrypto, resolveCryptoId, formatTicker } from "./tools/tickers.js";
+import { startFocus, stopFocus, getSessionStatus } from "./tools/focus.js";
 import {
   addMemory,
   getMemories,
@@ -281,6 +284,99 @@ Output ONLY the JSON, no other text:`;
             );
           }
           ws.send(JSON.stringify({ type: "end" }));
+          return;
+        }
+
+        // Calendar commands
+        if (/^\/agenda$/i.test(text) || /^\/schedule$/i.test(text) || /^\/today$/i.test(text)) {
+          const events = getTodayEvents();
+          ws.send(JSON.stringify({ type: "system", text: `**Today's agenda:**\n\n${formatAgenda(events)}` }));
+          return;
+        }
+
+        if (/^\/tomorrow$/i.test(text)) {
+          const events = getTomorrowEvents();
+          ws.send(JSON.stringify({ type: "system", text: `**Tomorrow's schedule:**\n\n${formatAgenda(events)}` }));
+          return;
+        }
+
+        if (/^\/week$/i.test(text) || /^\/calendar$/i.test(text)) {
+          const events = getWeekEvents();
+          ws.send(JSON.stringify({ type: "system", text: `**This week's calendar:**\n\n${formatAgenda(events)}` }));
+          return;
+        }
+
+        // Stock / crypto commands
+        if (/^\/stock\s+/i.test(text)) {
+          const symbol = text.replace(/^\/stock\s+/i, "").trim().toUpperCase();
+          if (!symbol) {
+            ws.send(JSON.stringify({ type: "system", text: "Usage: /stock AAPL" }));
+            return;
+          }
+          const ticker = await getStock(symbol);
+          if (!ticker) {
+            ws.send(JSON.stringify({ type: "system", text: `Could not find stock "${symbol}". Try a valid ticker like AAPL, TSLA, MSFT.` }));
+          } else {
+            ws.send(JSON.stringify({ type: "system", text: formatTicker(ticker) }));
+          }
+          return;
+        }
+
+        if (/^\/crypto\s+/i.test(text)) {
+          const input = text.replace(/^\/crypto\s+/i, "").trim();
+          const coinId = resolveCryptoId(input);
+          const ticker = await getCrypto(coinId);
+          if (!ticker) {
+            ws.send(JSON.stringify({ type: "system", text: `Could not find crypto "${input}". Try BTC, ETH, SOL, DOGE.` }));
+          } else {
+            ws.send(JSON.stringify({ type: "system", text: formatTicker(ticker) }));
+          }
+          return;
+        }
+
+        // Focus commands
+        if (/^\/focus\s+stop(?:\s+(.+))?$/i.test(text)) {
+          const match = text.match(/^\/focus\s+stop(?:\s+(.+))?$/i);
+          const id = match?.[1]?.trim() || undefined;
+          stopFocus(id);
+          ws.send(JSON.stringify({ type: "system", text: "Focus session stopped, sir." }));
+          return;
+        }
+
+        if (/^\/focus\s+status$/i.test(text)) {
+          ws.send(JSON.stringify({ type: "system", text: getSessionStatus() }));
+          return;
+        }
+
+        if (/^\/focus\s+/i.test(text)) {
+          const rest = text.replace(/^\/focus\s+/i, "").trim();
+          // Parse: /focus 25m task description  OR  /focus 25 task description
+          const durationMatch = rest.match(/^(\d+)\s*(min|m?)?\s*(.*)?$/i);
+          if (!durationMatch) {
+            ws.send(JSON.stringify({ type: "system", text: "Usage: /focus 25m <optional task description>" }));
+            return;
+          }
+          const minutes = parseInt(durationMatch[1]);
+          const task = durationMatch[3]?.trim() || undefined;
+          if (minutes < 1 || minutes > 480) {
+            ws.send(JSON.stringify({ type: "system", text: "Focus sessions must be between 1 and 480 minutes (8 hours), sir." }));
+            return;
+          }
+          const session = startFocus(minutes, task);
+          const taskStr = task ? ` on "${task}"` : "";
+          ws.send(JSON.stringify({
+            type: "system",
+            text: `**Focus mode activated.** ${minutes} minutes${taskStr}. Lock in, sir.\n\nSession ID: \`${session.id}\`\nUse \`/focus stop\` to cancel.`,
+          }));
+          return;
+        }
+
+        if (/^\/pomo$/i.test(text)) {
+          const session = startFocus(25, "Pomodoro");
+          ws.send(JSON.stringify({
+            type: "system",
+            text: `**Pomodoro started.** 25 minutes of focus. ID: \`${session.id}\``,
+          }));
           return;
         }
 
