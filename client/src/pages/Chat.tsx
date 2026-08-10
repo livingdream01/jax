@@ -33,24 +33,7 @@ export default function Chat() {
     }
   }, [transcript, isListening]);
 
-  // Auto-speak new Jax responses
-  useEffect(() => {
-    if (!autoSpeak || !messages.length) return;
-    const last = messages[messages.length - 1];
-    if (last.role === "jax" && last.text && !streaming) {
-      const speakingId = last.id;
-      speak(last.text);
-      // Don't speak it again
-      setTimeout(() => {
-        if ((speakingRef.current || speakingId) === speakingId) {
-          speakingRef.current = "";
-        }
-      }, 100);
-    }
-  }, [messages, streaming]);
-
-  const speakingRef = useRef("");
-  const lastJaxId = useRef("");
+  let lastJaxId = useRef("");
 
   useEffect(() => {
     if (!streaming && messages.length > 0) {
