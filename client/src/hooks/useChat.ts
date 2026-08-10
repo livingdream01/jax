@@ -1,10 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+interface SearchResult {
+  title: string;
+  url: string;
+  content: string;
+  score?: number;
+}
+
 interface JaxMessage {
   id: string;
   role: "jax" | "user";
   text: string;
   timestamp: number;
+  searchResults?: SearchResult[];
+  searchAnswer?: string;
 }
 
 export function useChat() {
@@ -94,6 +103,21 @@ export function useChat() {
               },
             ]);
             break;
+
+          case "search_results":
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last && last.role === "jax") {
+                updated[updated.length - 1] = {
+                  ...last,
+                  searchResults: data.results,
+                  searchAnswer: data.answer,
+                };
+              }
+              return updated;
+            });
+            break;
         }
       } catch {
         // ignore non-JSON
@@ -134,10 +158,24 @@ export function useChat() {
     wsRef.current.send(JSON.stringify({ command: "briefing", category: category || "all" }));
   }, [streaming]);
 
+  const sendSearch = useCallback((query: string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || streaming) return;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `user-${Date.now()}`,
+        role: "user",
+        text: `Search: ${query}`,
+        timestamp: Date.now(),
+      },
+    ]);
+    wsRef.current.send(JSON.stringify({ command: "search", text: query }));
+  }, [streaming]);
+
   const clearChat = useCallback(() => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ command: "clear" }));
   }, []);
 
-  return { messages, connected, streaming, sendMessage, sendBriefing, clearChat };
+  return { messages, connected, streaming, sendMessage, sendBriefing, sendSearch, clearChat };
 }
