@@ -11,8 +11,13 @@ async function runAutomationTask(task: any): Promise<void> {
   }
 }
 
+import { initAutomator } from "@/lib/tools/automator";
+
+let initialized = false;
+
 export async function GET() {
   const db = await getDb();
+  if (!initialized) { initAutomator(db, runAutomationTask); initialized = true; }
   const tasks = getAllTasks(db);
   return NextResponse.json({ tasks, count: tasks.length });
 }

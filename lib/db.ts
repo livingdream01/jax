@@ -29,6 +29,18 @@ export async function getDb(): Promise<Database> {
     updated_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS automations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    cron_expression TEXT NOT NULL,
+    type TEXT DEFAULT 'custom',
+    params TEXT DEFAULT '{}',
+    enabled INTEGER DEFAULT 1,
+    last_run TEXT,
+    last_status TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
   return db;
 }
 
