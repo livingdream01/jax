@@ -46,6 +46,7 @@ app.post("/api/tts", async (req, res) => {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
+        model: "s2.1-pro-free",
       },
       body: JSON.stringify({
         text,
