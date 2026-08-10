@@ -5,6 +5,7 @@ dist/
 .env.*.local
 data/*.db
 data/*.db-journal
+data/n8n/
 *.log
 .DS_Store
 .vite/
