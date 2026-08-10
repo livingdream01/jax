@@ -5,19 +5,27 @@ const CATEGORIES = [
   { id: "tech", label: "Tech" },
   { id: "business", label: "Business" },
   { id: "science", label: "Science" },
-  { id: "general", label: "General" },
 ];
 
 const SOURCE_COLORS: Record<string, string> = {
-  "Hacker News": "bg-orange-500/10 text-orange-400 border-orange-500/30",
-  "Ars Technica": "bg-red-500/10 text-red-400 border-red-500/30",
-  "The Verge": "bg-purple-500/10 text-purple-400 border-purple-500/30",
-  TechCrunch: "bg-green-500/10 text-green-400 border-green-500/30",
-  "BBC News": "bg-red-600/10 text-red-400 border-red-600/30",
-  "r/technology": "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  "r/programming": "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  "r/science": "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  "r/worldnews": "bg-sky-500/10 text-sky-400 border-sky-500/30",
+  // Tier 1 — premium sources
+  "Nature": "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
+  "MIT Tech Review": "bg-red-500/10 text-red-400 border-red-500/30",
+  "IEEE Spectrum": "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  "Quanta Magazine": "bg-purple-500/10 text-purple-400 border-purple-500/30",
+  "Ars Technica": "bg-orange-500/10 text-orange-400 border-orange-500/30",
+  "Wired": "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/30",
+  "Science Daily": "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+  "New Scientist": "bg-teal-500/10 text-teal-400 border-teal-500/30",
+  "Fortune": "bg-amber-500/10 text-amber-400 border-amber-500/30",
+  "MarketWatch": "bg-lime-500/10 text-lime-400 border-lime-500/30",
+  "CNBC Tech": "bg-sky-500/10 text-sky-400 border-sky-500/30",
+  // Tier 2
+  "Hacker News": "bg-orange-600/10 text-orange-400 border-orange-600/30",
+  "r/technology": "bg-blue-600/10 text-blue-400 border-blue-600/30",
+  "r/programming": "bg-blue-600/10 text-blue-400 border-blue-600/30",
+  "r/MachineLearning": "bg-violet-600/10 text-violet-400 border-violet-600/30",
+  "r/business": "bg-amber-600/10 text-amber-400 border-amber-600/30",
 };
 
 function formatDate(iso: string): string {

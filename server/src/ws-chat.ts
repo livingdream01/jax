@@ -65,7 +65,7 @@ export function handleChat(ws: WebSocket, sessionId: string): void {
               }),
             );
           } else {
-            const prompt = `You are JAX. Give a concise morning-style briefing of these top ${top.length} news articles. For each, include the headline and a one-sentence summary. Use your Jarvis persona — witty, efficient, calls the user "sir". End with a sign-off like "That's your briefing, sir."
+            const prompt = `You are JAX, personal assistant. Deliver a concise, Reuters-style briefing of these top ${top.length} articles. No intro, no filler. For each: bold headline, then one sharp factual sentence. Group by relevance if possible. End with "End of briefing, sir." Do not mention your name or persona in the response.
 
 Articles:
 ${top

@@ -17,7 +17,9 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL = 10 * 60 * 1000;
+
+const VALID_CATEGORIES = new Set(["tech", "business", "science"]);
 
 export async function getNews(category?: string): Promise<Article[]> {
   const now = Date.now();
@@ -39,20 +41,27 @@ export async function getNews(category?: string): Promise<Article[]> {
     if (r.status === "fulfilled") articles.push(...r.value);
   }
 
-  // Deduplicate by title similarity
   articles = deduplicate(articles);
 
-  // Sort by date, newest first
-  articles.sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-  );
+  // Sort by recognized source priority + date
+  const sourcePriority: Record<string, number> = {
+    "Nature": 0, "MIT Tech Review": 0, "IEEE Spectrum": 0, "Quanta Magazine": 0,
+    "Science Daily": 1, "Ars Technica": 1, "Wired": 1,
+    "Fortune": 2, "MarketWatch": 2, "CNBC Tech": 2,
+    "New Scientist": 3, "Hacker News": 3,
+  };
+
+  articles.sort((a, b) => {
+    const pa = sourcePriority[a.source] ?? 5;
+    const pb = sourcePriority[b.source] ?? 5;
+    if (pa !== pb) return pa - pb;
+    return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+  });
 
   cache.set(cacheKey, { articles, timestamp: now });
 
-  if (category && category !== "all") {
-    return articles.filter(
-      (a) => a.category.toLowerCase() === category.toLowerCase(),
-    );
+  if (category && VALID_CATEGORIES.has(category)) {
+    return articles.filter((a) => a.category === category);
   }
 
   return articles;
@@ -62,26 +71,13 @@ export function clearNewsCache(): void {
   cache.clear();
 }
 
-export function categorizeArticles(articles: Article[]): Record<string, Article[]> {
-  const groups: Record<string, Article[]> = {
-    tech: [],
-    business: [],
-    science: [],
-    general: [],
-  };
-
-  for (const a of articles) {
-    const cat = groups[a.category] ? a.category : "general";
-    groups[cat].push(a);
-  }
-
-  return groups;
-}
-
 function deduplicate(articles: Article[]): Article[] {
   const seen = new Set<string>();
   return articles.filter((a) => {
-    const key = a.title.toLowerCase().slice(0, 60).replace(/[^a-z0-9]/g, "");
+    const key = a.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .slice(0, 50);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
