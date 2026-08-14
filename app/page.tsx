@@ -3,8 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useVoice } from "@/hooks/useVoice";
 import SlashMenu from "@/components/SlashMenu";
+import ThinkingPanel from "@/components/ThinkingPanel";
 import { filterCommands } from "@/lib/commands";
 import { getSessionId } from "@/lib/auth";
+import type { ThinkingStep } from "@/lib/agent/loop";
 
 interface ApexMessage {
   id: string;
@@ -22,6 +24,8 @@ export default function ChatPage() {
   const [searchMode, setSearchMode] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
+  const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [thinkingActive, setThinkingActive] = useState(false);
   const [abortCtrl, setAbortCtrl] = useState<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
@@ -77,10 +81,15 @@ export default function ChatPage() {
           const l = line.trim(); if (!l.startsWith("data: ")) continue;
           try {
             const data = JSON.parse(l.slice(6));
-            if (data.type === "chunk") { fullText += data.text; updateLast(fullText); }
-            else if (data.type === "search_results") { updateLast(fullText, data.results); }
-            else if (data.type === "system" || data.type === "error") { fullText = data.text; updateLast(data.text); }
-            else if (data.type === "end") { setStreaming(false); }
+            const t = data.eventType || data.type;
+            if (t === "chunk") { fullText += data.text; updateLast(fullText); }
+            else if (t === "search_results") { updateLast(fullText, data.results); }
+            else if (t === "system" || t === "error") { fullText = data.text; updateLast(data.text); }
+            else if (t === "thinking_start") { setThinkingSteps([]); setThinkingActive(true); }
+            else if (t === "thinking") { setThinkingSteps(p => [...p, data as ThinkingStep]); }
+            else if (t === "thinking_end") { setThinkingSteps(data.steps || []); setThinkingActive(false); }
+            else if (t === "end") { setStreaming(false); setThinkingActive(false); }
+            else if (t === "start") { /* ignore */ }
           } catch {}
         }
       }
@@ -210,6 +219,11 @@ export default function ChatPage() {
             </div>
           ))}
           <div ref={messagesEndRef} />
+          {thinkingSteps.length > 0 && (
+            <div className="px-6 pb-2">
+              <ThinkingPanel steps={thinkingSteps} isActive={thinkingActive} />
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,19 +1,18 @@
-import { chat, clearHistory } from "@/lib/llm/router";
-import { getNews } from "@/lib/tools/news";
-import { webSearch } from "@/lib/tools/web-search";
-import { deepResearch, fetchPageContent } from "@/lib/tools/research";
-import { addMemory, getMemories, deleteMemory, clearAllMemories, extractMemoriesFromChat } from "@/lib/tools/memory";
+import { clearHistory } from "@/lib/llm/router";
+import { addMemory, getMemories, deleteMemory, clearAllMemories } from "@/lib/tools/memory";
 import { getDb, saveDb } from "@/lib/db";
 import { createTask, getAllTasks, deleteTask as delTask } from "@/lib/tools/automator";
 import { getTodayEvents, getTomorrowEvents, getWeekEvents, formatAgenda } from "@/lib/tools/calendar";
 import { getStock, getCrypto, resolveCryptoId, formatTicker } from "@/lib/tools/tickers";
 import { startFocus, stopFocus, getSessionStatus } from "@/lib/tools/focus";
 import { openrouterChat } from "@/lib/llm/openrouter";
-
-const SEARCH_TRIGGERS = /^(search|look up|find|what is|who is|how to|what are|latest|news about|tell me about)\b/i;
+import { runAgentLoop } from "@/lib/agent/loop";
+import { getNews } from "@/lib/tools/news";
+import { webSearch } from "@/lib/tools/web-search";
+import { deepResearch, fetchPageContent } from "@/lib/tools/research";
 
 function sendSSE(controller: ReadableStreamDefaultController, type: string, data: any) {
-  controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type, ...data })}\n\n`));
+  controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ eventType: type, ...data })}\n\n`));
 }
 
 async function runAutomationTask(task: any): Promise<void> {
@@ -179,35 +178,22 @@ export async function POST(req: Request) {
           send("end"); controller.close(); return;
         }
 
-        // Search
-        if (/^\/search\s+/i.test(msg) || SEARCH_TRIGGERS.test(msg)) {
-          const query = msg.replace(/^\/search\s+/i, "").replace(SEARCH_TRIGGERS, "").trim();
-          if (query.length > 2) {
-            send("start");
-            send("chunk", { text: `Searching for "${query}"...\n\n` });
-            const { results, answer } = await webSearch(query);
-            if (results.length > 0) {
-              send("search_results", { results, answer });
-              send("chunk", { text: answer ? `**Answer:** ${answer}\n\n**Top results:**\n${results.map((r, i) => `${i + 1}. [${r.title}](${r.url})`).join("\n")}` : `**Top results:**\n${results.map((r, i) => `${i + 1}. **${r.title}**\n   ${r.content.slice(0, 150)}\n   ${r.url}`).join("\n\n")}` });
-            } else { send("chunk", { text: "No results found." }); }
-            send("end"); controller.close(); return;
-          }
-        }
-
-        // Briefing
-        if (/^(briefing|news|daily)\s*(tech|business|science|all)?$/i.test(msg)) {
-          const cat = msg.match(/tech|business|science/i)?.[0] || undefined;
-          send("start");
-          const articles = await getNews(cat);
-          const top = articles.slice(0, 8).map((a, i) => `${i + 1}. **${a.title}** — _${a.source}_\n   ${a.summary.slice(0, 120)}\n   ${a.url}`).join("\n\n");
-          send("chunk", { text: `**${cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : "Daily"} Briefing**\n\n${top}\n\n${articles.length} articles total.` });
-          send("end"); controller.close(); return;
-        }
-
-        // Regular chat
+        // Agentic reasoning loop — handles complex queries, tool calls
         send("start");
-        const response = await chat(sessionId, msg, (chunk) => send("chunk", { text: chunk }));
-        extractMemoriesFromChat(msg, response, async (msgs) => openrouterChat("deepseek/deepseek-chat", msgs as any, () => {}));
+        send("thinking_start", {});
+
+        const { steps } = await runAgentLoop(
+          msg,
+          sessionId,
+          (step) => {
+            send("thinking", step);
+          },
+          (chunk) => {
+            send("chunk", { text: chunk });
+          },
+        );
+
+        send("thinking_end", { steps });
         send("end");
       } catch (err: any) {
         send("error", { text: `Something went wrong, sir. ${err.message}` });
