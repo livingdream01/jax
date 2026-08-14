@@ -7,6 +7,11 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
+    "service:start": "scripts/apex-service.sh start",
+    "service:stop": "scripts/apex-service.sh stop",
+    "service:restart": "scripts/apex-service.sh restart",
+    "service:status": "scripts/apex-service.sh status",
+    "service:logs": "scripts/apex-service.sh logs",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
