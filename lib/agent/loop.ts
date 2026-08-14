@@ -27,139 +27,90 @@ export async function runAgentLoop(
   onChunk: (text: string) => void,
 ): Promise<AgentResult> {
   const steps: ThinkingStep[] = [];
+  const emit = (step: ThinkingStep) => {
+    steps.push(step);
+    onStep(step);
+  };
+
   const memories = await getMemories(40);
   const memoryBlock = formatMemoriesForPrompt(memories);
 
-  let conversation: { role: "system" | "user" | "assistant"; content: string }[] = [
-    { role: "system" as const, content: buildAgentSystemPrompt() + memoryBlock },
-    { role: "user" as const, content: userMessage },
+  const conversation: { role: "system" | "user" | "assistant"; content: string }[] = [
+    { role: "system", content: buildAgentSystemPrompt() + memoryBlock },
+    { role: "user", content: userMessage },
   ];
 
   let iteration = 0;
   let complete = false;
-  let finalResponse = "";
+  let actionCount = 0;
 
   while (!complete && iteration < MAX_ITERATIONS) {
     iteration++;
 
-    const raw = await callLLM(conversation, onStep, steps);
+    const raw = await openrouterChat(MODEL, conversation, () => {});
     conversation.push({ role: "assistant", content: raw });
 
     const parsed = parseAgentResponse(raw);
 
-    // Handle ACTIONS
-    if (parsed.actions.length > 0 && steps.filter((s) => s.type === "action").length < MAX_ACTIONS) {
-      for (const action of parsed.actions) {
-        const tool = findTool(action.name);
-        const step: ThinkingStep = {
-          type: "action",
-          content: `Calling ${action.name}(${Object.entries(action.args).map(([k, v]) => `${k}=${v}`).join(", ")})`,
-          status: "running",
-          toolName: action.name,
-          toolArgs: action.args,
-        };
-        steps.push(step);
-        onStep(step);
+    if (parsed.think) emit({ type: "think", content: parsed.think, status: "done" });
+    if (parsed.plan) emit({ type: "plan", content: parsed.plan, status: "done" });
 
-        if (tool) {
-          try {
-            const result = await tool.execute(action.args);
-            step.status = "done";
-            step.content = result;
-            onStep(step);
-            conversation.push({ role: "user", content: `OBSERVATION: ${result}` });
-          } catch (err: any) {
-            step.status = "error";
-            step.content = `Error: ${err.message}`;
-            onStep(step);
-            conversation.push({ role: "user", content: `OBSERVATION: Error — ${err.message}` });
-          }
-        } else {
+    for (const action of parsed.actions) {
+      if (actionCount >= MAX_ACTIONS) break;
+      actionCount++;
+
+      const tool = findTool(action.name);
+      const callStr = `Calling ${action.name}(${Object.entries(action.args)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(", ")})`;
+
+      const step: ThinkingStep = {
+        type: "action",
+        content: callStr,
+        status: "running",
+        toolName: action.name,
+        toolArgs: action.args,
+      };
+      emit(step);
+
+      let result: string;
+      if (tool) {
+        try {
+          result = await tool.execute(action.args);
+          step.status = "done";
+        } catch (err: any) {
+          result = `Error: ${err.message}`;
           step.status = "error";
-          step.content = `Tool "${action.name}" not available.`;
-          onStep(step);
-          conversation.push({ role: "user", content: `OBSERVATION: Tool "${action.name}" not found. Available tools: ${findTool("") ? "listed above" : "none"}` });
         }
+      } else {
+        result = `Tool "${action.name}" is not available.`;
+        step.status = "error";
       }
+
+      step.content = result;
+      onStep(step);
+      conversation.push({ role: "user", content: `OBSERVATION: ${result}` });
     }
 
-    // Check if we should loop again
-    if (parsed.reflect && parsed.reflect.includes("complete") || parsed.respond) {
+    if (parsed.reflect) emit({ type: "reflect", content: parsed.reflect, status: "done" });
+
+    // Complete when the model issued no further actions (nothing left to act on)
+    if (parsed.actions.length === 0) {
       complete = true;
-    } else if (parsed.reflect && (parsed.reflect.includes("need more") || parsed.reflect.includes("incomplete"))) {
-      // Continue loop — add continuation prompt
+    } else if (/need more|incomplete|continue|further|not (yet )?complete/i.test(parsed.reflect || "")) {
       conversation.push({ role: "user", content: "Continue your analysis. What else do you need to do?" });
     } else {
-      // No reflection found — assume complete
       complete = true;
     }
   }
 
-  // Generate final response
-  if (complete) {
-    finalResponse = await generateFinalResponse(conversation, onChunk);
-  } else {
-    finalResponse = await generateFinalResponse(conversation, onChunk);
-  }
+  const finalResponse = await generateFinalResponse(conversation, onChunk);
 
-  // Extract memories in background
   extractMemoriesFromChat(userMessage, finalResponse, async (msgs) =>
-    openrouterChat(MODEL, msgs as any, () => {})
+    openrouterChat(MODEL, msgs as any, () => {}),
   ).catch(() => {});
 
   return { response: finalResponse, steps };
-}
-
-async function callLLM(
-  messages: { role: "system" | "user" | "assistant"; content: string }[],
-  onStep: (step: ThinkingStep) => void,
-  steps: ThinkingStep[],
-): Promise<string> {
-  let buffer = "";
-  return openrouterChat(MODEL, messages, (chunk) => {
-    buffer += chunk;
-    // Detect thinking steps as they stream
-    detectThinkingSteps(buffer, onStep, steps);
-  });
-}
-
-function detectThinkingSteps(
-  text: string,
-  onStep: (step: ThinkingStep) => void,
-  steps: ThinkingStep[],
-) {
-  const lines = text.split("\n");
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    if (trimmed.startsWith("THINK:") || trimmed.startsWith("THINK：")) {
-      const content = trimmed.replace(/^THINK[：:]\s*/i, "").trim();
-      if (content && !steps.some((s) => s.type === "think" && s.content === content)) {
-        const step: ThinkingStep = { type: "think", content, status: "done" };
-        steps.push(step);
-        onStep(step);
-      }
-    }
-
-    if (trimmed.startsWith("PLAN:") || trimmed.startsWith("PLAN：")) {
-      const content = trimmed.replace(/^PLAN[：:]\s*/i, "").trim();
-      if (content && !steps.some((s) => s.type === "plan" && s.content === content)) {
-        const step: ThinkingStep = { type: "plan", content, status: "done" };
-        steps.push(step);
-        onStep(step);
-      }
-    }
-
-    if (trimmed.startsWith("REFLECT:") || trimmed.startsWith("REFLECT：")) {
-      const content = trimmed.replace(/^REFLECT[：:]\s*/i, "").trim();
-      if (content && !steps.some((s) => s.type === "reflect" && s.content === content)) {
-        const step: ThinkingStep = { type: "reflect", content, status: "done" };
-        steps.push(step);
-        onStep(step);
-      }
-    }
-  }
 }
 
 function parseAgentResponse(raw: string): {
@@ -169,44 +120,64 @@ function parseAgentResponse(raw: string): {
   reflect?: string;
   respond?: string;
 } {
-  const actions: { name: string; args: Record<string, string> }[] = [];
-  let think: string | undefined;
-  let plan: string | undefined;
-  let reflect: string | undefined;
-  let respond: string | undefined;
+  const result: {
+    think?: string;
+    plan?: string;
+    actions: { name: string; args: Record<string, string> }[];
+    reflect?: string;
+    respond?: string;
+  } = { actions: [] };
 
-  const lines = raw.split("\n");
-  for (const line of lines) {
+  let current: "think" | "plan" | "reflect" | "respond" | null = null;
+
+  for (const line of raw.split("\n")) {
     const t = line.trim();
+    if (!t) continue;
 
-    if (t.startsWith("THINK:") || t.startsWith("THINK：")) {
-      think = t.replace(/^THINK[：:]\s*/i, "").trim();
-    } else if (t.startsWith("PLAN:") || t.startsWith("PLAN：")) {
-      plan = t.replace(/^PLAN[：:]\s*/i, "").trim();
-    } else if (t.startsWith("REFLECT:") || t.startsWith("REFLECT：")) {
-      reflect = t.replace(/^REFLECT[：:]\s*/i, "").trim();
-    } else if (t.startsWith("RESPOND:") || t.startsWith("RESPOND：")) {
-      respond = t.replace(/^RESPOND[：:]\s*/i, "").trim();
-    } else if (t.startsWith("ACTION:") || t.startsWith("ACTION：")) {
-      const actionStr = t.replace(/^ACTION[：:]\s*/i, "").trim();
-      const match = actionStr.match(/^(\w+)\(([^)]*)\)/);
-      if (match) {
-        const name = match[1];
-        const argsStr = match[2];
-        const args: Record<string, string> = {};
-        const argPairs = argsStr.split(",").map((s) => s.trim()).filter(Boolean);
-        for (const pair of argPairs) {
-          const eq = pair.indexOf("=");
-          if (eq > 0) {
-            args[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
-          }
-        }
-        actions.push({ name, args });
-      }
+    const header = t.match(/^(THINK|PLAN|REFLECT|RESPOND)[：:]\s*(.*)$/i);
+    if (header) {
+      const section = header[1].toLowerCase() as "think" | "plan" | "reflect" | "respond";
+      result[section] = header[2].trim();
+      current = section;
+      continue;
+    }
+
+    const actionMatch = t.match(/^ACTION[：:]\s*(.+)$/i);
+    if (actionMatch) {
+      current = null;
+      const action = parseAction(actionMatch[1]);
+      if (action) result.actions.push(action);
+      continue;
+    }
+
+    // Ignore anything that looks like another section or observation
+    if (/^OBSERVATION[：:]/i.test(t)) {
+      current = null;
+      continue;
+    }
+
+    // Continuation lines append to the current section
+    if (current && result[current] !== undefined) {
+      result[current] += "\n" + t;
     }
   }
 
-  return { think, plan, actions, reflect, respond };
+  return result;
+}
+
+function parseAction(actionStr: string): { name: string; args: Record<string, string> } | null {
+  const match = actionStr.match(/^(\w+)\(([^)]*)\)/);
+  if (!match) return null;
+
+  const name = match[1];
+  const args: Record<string, string> = {};
+  for (const pair of match[2].split(",").map((s) => s.trim()).filter(Boolean)) {
+    const eq = pair.indexOf("=");
+    if (eq > 0) {
+      args[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
+    }
+  }
+  return { name, args };
 }
 
 async function generateFinalResponse(
