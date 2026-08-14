@@ -5,7 +5,7 @@ A Jarvis-style personal assistant. Witty, sharp, at your service. Built with **N
 ## Architecture
 
 ```
-Browser (localhost:3000)
+Browser (localhost:3001)
     │
     ├── Next.js App Router
     │   ├── /api/chat → SSE streaming (replaces WebSocket)
@@ -77,7 +77,7 @@ FISH_AUDIO_API_KEY=sk-fish-...      # Optional — TTS voice
 npm run dev
 ```
 
-Open **http://localhost:3000**.
+Open **http://localhost:3001**.
 
 ## Commands
 

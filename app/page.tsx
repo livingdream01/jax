@@ -3,10 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useVoice } from "@/hooks/useVoice";
 import SlashMenu from "@/components/SlashMenu";
-import ThinkingPanel from "@/components/ThinkingPanel";
 import { filterCommands } from "@/lib/commands";
 import { getSessionId } from "@/lib/auth";
-import type { ThinkingStep } from "@/lib/agent/loop";
 
 interface ApexMessage {
   id: string;
@@ -24,7 +22,6 @@ export default function ChatPage() {
   const [searchMode, setSearchMode] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
-  const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [thinkingActive, setThinkingActive] = useState(false);
   const [abortCtrl, setAbortCtrl] = useState<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,9 +82,9 @@ export default function ChatPage() {
             if (t === "chunk") { fullText += data.text; updateLast(fullText); }
             else if (t === "search_results") { updateLast(fullText, data.results); }
             else if (t === "system" || t === "error") { fullText = data.text; updateLast(data.text); }
-            else if (t === "thinking_start") { setThinkingSteps([]); setThinkingActive(true); }
-            else if (t === "thinking") { setThinkingSteps(p => [...p, data as ThinkingStep]); }
-            else if (t === "thinking_end") { setThinkingSteps(data.steps || []); setThinkingActive(false); }
+            else if (t === "thinking_start") { setThinkingActive(true); }
+            else if (t === "thinking") { /* collected server-side, not displayed */ }
+            else if (t === "thinking_end") { setThinkingActive(false); }
             else if (t === "end") { setStreaming(false); setThinkingActive(false); }
             else if (t === "start") { /* ignore */ }
           } catch {}
@@ -191,8 +188,18 @@ export default function ChatPage() {
                     ? "bg-accent text-white rounded-br-md"
                     : "bg-bg-surface border border-border-subtle rounded-bl-md"
                 }`}>
-                  <MessageContent text={msg.text} />
-                  {msg.role === "apex" && streaming && i === messages.length - 1 && (
+                  {msg.role === "apex" && thinkingActive && !msg.text && (
+                    <span className="inline-flex items-center gap-2 text-text-tertiary text-xs">
+                      <span className="flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-glow animate-pulse" style={{ animationDelay: "0ms" }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-glow animate-pulse" style={{ animationDelay: "150ms" }} />
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-glow animate-pulse" style={{ animationDelay: "300ms" }} />
+                      </span>
+                      Thinking…
+                    </span>
+                  )}
+                  {msg.text ? <MessageContent text={msg.text} /> : (msg.role === "apex" && !thinkingActive ? "…" : null)}
+                  {msg.role === "apex" && streaming && i === messages.length - 1 && msg.text && (
                     <span className="inline-block w-1.5 h-5 bg-accent-glow ml-0.5 animate-pulse align-middle rounded-sm" />
                   )}
                 </div>
@@ -219,11 +226,6 @@ export default function ChatPage() {
             </div>
           ))}
           <div ref={messagesEndRef} />
-          {thinkingSteps.length > 0 && (
-            <div className="px-6 pb-2">
-              <ThinkingPanel steps={thinkingSteps} isActive={thinkingActive} />
-            </div>
-          )}
         </div>
       </div>
 

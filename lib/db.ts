@@ -41,6 +41,15 @@ export async function getDb(): Promise<Database> {
     created_at TEXT DEFAULT (datetime('now'))
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS reasoning_traces (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    user_message TEXT NOT NULL,
+    steps TEXT NOT NULL,
+    response TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
   return db;
 }
 

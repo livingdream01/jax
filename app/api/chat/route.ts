@@ -7,6 +7,7 @@ import { getStock, getCrypto, resolveCryptoId, formatTicker } from "@/lib/tools/
 import { startFocus, stopFocus, getSessionStatus } from "@/lib/tools/focus";
 import { openrouterChat } from "@/lib/llm/openrouter";
 import { runAgentLoop } from "@/lib/agent/loop";
+import { addTrace } from "@/lib/tools/reasoning";
 import { getNews } from "@/lib/tools/news";
 import { webSearch } from "@/lib/tools/web-search";
 import { deepResearch, fetchPageContent } from "@/lib/tools/research";
@@ -182,7 +183,7 @@ export async function POST(req: Request) {
         send("start");
         send("thinking_start", {});
 
-        const { steps } = await runAgentLoop(
+        const { steps, response } = await runAgentLoop(
           msg,
           sessionId,
           (step) => {
@@ -192,6 +193,14 @@ export async function POST(req: Request) {
             send("chunk", { text: chunk });
           },
         );
+
+        // Persist reasoning trace if the agent actually reasoned
+        const meaningfulSteps = steps.filter(
+          (s) => s.type === "think" || s.type === "plan" || s.type === "action" || s.type === "reflect",
+        );
+        if (meaningfulSteps.length > 0) {
+          addTrace(sessionId, msg, steps, response).catch(() => {});
+        }
 
         send("thinking_end", { steps });
         send("end");
